@@ -1,0 +1,33 @@
+project:
+  description: >
+    Expo Router + React Native + TypeScript app. Reuse existing design tokens in assets/theme.ts.
+    Keep routing under app/ with file-based routes. Prefer functional components with StyleSheet.create.
+style:
+  useTheme: true
+  themeImport: "import { theme } from '../assets/theme';"
+  spacing: "theme.spacing"
+  colors: "theme.colors"
+  typography: "theme.text"
+  borderRadius: "theme.borderRadius"
+  iconSizes: "theme.iconSize"
+  avoidHardcoded: true
+  shadows: "light; use React Native shadowColor/shadowOpacity/shadowRadius or elevation"
+  fonts: "use existing Poppins families from theme.text; avoid new fonts unless provided"
+components:
+  patterns:
+    - prefer SafeAreaView for screens
+    - use ScrollView/FlatList for vertical layouts
+    - avoid inline styles; define with StyleSheet.create
+    - keep props typed; no any
+    - extract reusable atoms (buttons, cards, chips) into components/
+paths:
+  screensDir: "./app"
+  componentsDir: "./components"
+assets:
+  images: "use local assets/ with require()"
+  icons: "prefer Feather from @expo/vector-icons unless specific asset provided"
+routing:
+  router: "expo-router"
+  tabs: "app/_layout.tsx defines tabs; add new screens as files or folders under app/"
+data:
+  apiKeys: "do not hardcode; read from process.env or utils/env"
