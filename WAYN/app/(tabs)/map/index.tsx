@@ -22,7 +22,6 @@ import {
   Dimensions,
   StyleSheet,
   View,
-  Alert,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Region } from "react-native-maps";
@@ -56,7 +55,6 @@ import { theme } from "../../../assets/theme";
 import { Friend, Location as LocationType } from "../../../types/index";
 import getEnv from "../../../utils/env";
 
-import MapInboxButton from "@/components/buttons/mapInbox";
 import GiftDraftsButton from "../../../components/buttons/giftDrafts";
 
 import { useAuth } from "../../../contexts/authContext";
@@ -168,9 +166,15 @@ export default function App() {
     gift_receiver_display_name: string;
     session_id: string;
     payload: {
+      createdAt?: string;
+      hostName: string;
+      hostId: string;
+      giftCount: any;
       sessionId: string;
-      friendName: string;
-      address: string;
+      friendName: string; // receiver display name
+      friendId: string;
+      locationAddress: string;
+      locationName: string;
       collaboratorIds: string[];
     };
   }
@@ -180,12 +184,13 @@ export default function App() {
     useState<CollabInviteNotification | null>(null);
 
   const handleAcceptCollab = () => {
-    Alert.alert("Gift collaboration feature coming soon!");
-    return;
+    // Alert.alert("Gift collaboration feature coming soon!");
+    // return;
     // Navigate to the collaborative gift basket
+    console.log("Collab invite payload:", collabInvite?.payload);
     router.push({
       pathname: "/(tabs)/map/collabGiftBasket",
-      params: collabInvite.payload,
+      params: collabInvite?.payload,
     });
     setCollabInvite(null);
   };
@@ -1140,69 +1145,69 @@ export default function App() {
 
   // Subscribe to COLLABORATIVE gifts
   // Subscribe to COLLABORATIVE gifts
-useEffect(() => {
-  if (!currentUser) return;
+  useEffect(() => {
+    if (!currentUser) return;
 
-  const channel = db
-    .channel(`collab_gifts_for_${currentUser.id}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "sent_gifts_collab",
-        filter: `receiver_id=eq.${currentUser.id}`,
-      },
-      async (payload) => {
-        console.log("New COLLABORATIVE gift received:", payload);
-        const newGift = payload.new;
+    const channel = db
+      .channel(`collab_gifts_for_${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sent_gifts_collab",
+          filter: `receiver_id=eq.${currentUser.id}`,
+        },
+        async (payload) => {
+          console.log("New COLLABORATIVE gift received:", payload);
+          const newGift = payload.new;
 
-        // Fetch all sender icons
-        const allSenderIds = [
-          newGift.sender_ids.host,
-          ...(newGift.sender_ids.collaborators || []),
-        ];
-        
-        const collaboratorIcons = await Promise.all(
-          allSenderIds.slice(0, 3).map(async (id) => {
-            const { user } = await UserService.getUserById(id);
-            return user?.profile_icon_url
-              ? { uri: user.profile_icon_url }
-              : require("../../../assets/userIcons/jillicon.png");
-          })
-        );
+          // Fetch all sender icons
+          const allSenderIds = [
+            newGift.sender_ids.host,
+            ...(newGift.sender_ids.collaborators || []),
+          ];
 
-        const senderIcon = collaboratorIcons[0]; // Host is first in the array
+          const collaboratorIcons = await Promise.all(
+            allSenderIds.slice(0, 3).map(async (id) => {
+              const { user } = await UserService.getUserById(id);
+              return user?.profile_icon_url
+                ? { uri: user.profile_icon_url }
+                : require("../../../assets/userIcons/jillicon.png");
+            })
+          );
 
-        const receivedGift: ReceivedGift = {
-          id: newGift.id.toString(),
-          senderId: newGift.sender_ids.host,
-          senderName: newGift.sender_display_names.host,
-          senderIcon: senderIcon,
-          latitude: parseFloat(newGift.latitude) || 0,
-          longitude: parseFloat(newGift.longitude) || 0,
-          giftType: "collaborative", 
-          dateSent: new Date(newGift.created_at).toLocaleDateString(),
-          address: newGift.address,
-          content: {
-            ...newGift.content,
-            senderDisplayNames: newGift.sender_display_names,
-          },
-          isCollaborative: true, 
-          collaboratorIcons: collaboratorIcons, 
-        };
+          const senderIcon = collaboratorIcons[0]; // Host is first in the array
 
-        setReceivedGifts((prev) => [...prev, receivedGift]);
-        setSelectedReceivedGift(receivedGift);
-        setShowGiftReceivedPopup(true);
-      }
-    )
-    .subscribe();
+          const receivedGift: ReceivedGift = {
+            id: newGift.id.toString(),
+            senderId: newGift.sender_ids.host,
+            senderName: newGift.sender_display_names.host,
+            senderIcon: senderIcon,
+            latitude: parseFloat(newGift.latitude) || 0,
+            longitude: parseFloat(newGift.longitude) || 0,
+            giftType: "collaborative",
+            dateSent: new Date(newGift.created_at).toLocaleDateString(),
+            address: newGift.address,
+            content: {
+              ...newGift.content,
+              senderDisplayNames: newGift.sender_display_names,
+            },
+            isCollaborative: true,
+            collaboratorIcons: collaboratorIcons,
+          };
 
-  return () => {
-    channel.unsubscribe();
-  };
-}, [currentUser?.id]);
+          setReceivedGifts((prev) => [...prev, receivedGift]);
+          setSelectedReceivedGift(receivedGift);
+          setShowGiftReceivedPopup(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUser?.id]);
 
   // Add this helper function to calculate distance
   const calculateDistance = (

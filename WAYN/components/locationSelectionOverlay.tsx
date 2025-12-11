@@ -1,18 +1,18 @@
+import { Feather } from "@expo/vector-icons";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   FlatList,
+  Keyboard,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableWithoutFeedback,
-  Keyboard,
+  View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import SelectableLocationItem from "./selectableLocation";
 import { theme } from "../assets/theme";
 import { Location } from "../types/index";
+import SelectableLocationItem from "./selectableLocation";
 
 interface LocationSelectionOverlayProps {
   bottomSheetRef: React.RefObject<BottomSheet | null>;
@@ -38,6 +38,7 @@ const LocationSelectionOverlay: React.FC<LocationSelectionOverlayProps> = ({
   isPOISelected = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [recommendedPlaces, setRecommendedPlaces] = useState<Location[]>([]);
 
   // Filter locations based on search query
   const filteredLocations = locations.filter(
@@ -45,6 +46,8 @@ const LocationSelectionOverlay: React.FC<LocationSelectionOverlayProps> = ({
       location.locationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       location.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Fetch recommended places based on receiver's current location
 
   const renderLocationItem = ({
     item,
@@ -79,11 +82,13 @@ const LocationSelectionOverlay: React.FC<LocationSelectionOverlayProps> = ({
           <View style={styles.container}>
             {/* Header */}
             <View style={styles.headerContainer}>
-              <Text style={theme.text.headline3}>Choose Gift Destination</Text>
+              <Text style={theme.text.headline3}>
+                Choose where {friendName} unlocks gift
+              </Text>
               <Text style={[theme.text.body3, styles.subtitle]}>
                 {isPOISelected
                   ? `Tap a location pin on the map or search below`
-                  : `${friendName} unlocks gift at this destination`}
+                  : `Select from the list or drop a pin on the map`}
               </Text>
             </View>
 
