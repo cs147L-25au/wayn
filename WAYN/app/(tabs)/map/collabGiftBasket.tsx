@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  ScrollView,
-  Image,
-  StyleSheet,
-  Alert,
+  View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { UserService } from "../../../services/userService";
 import { theme } from "../../../assets/theme";
-import { useAuth } from "../../../contexts/authContext";
-import { db } from "../../../utils/supabase";
-import { Friend } from "../../../types";
-import OverlayHeader from "../../../components/navigation/overlayHeader";
 import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
-import { LinearGradient } from "expo-linear-gradient";
 import GiftVisual from "../../../components/GiftVisual";
+import OverlayHeader from "../../../components/navigation/overlayHeader";
+import { useAuth } from "../../../contexts/authContext";
+import { UserService } from "../../../services/userService";
+import { db } from "../../../utils/supabase";
 
 // gift entries as stored in supabase
 interface GiftCollab {
@@ -51,6 +48,8 @@ const getGiftType = (gift: GiftCollab) => {
 export default function ConfirmGiftScreen() {
   const { currentUser } = useAuth();
   const [gifts, setGifts] = useState<GiftCollab[]>([]);
+  const [isCollaborator, setIsCollaborator] = useState(false);
+  const [parsedIds, setParsedIds] = useState([]);
 
   const params = useLocalSearchParams();
   const {
@@ -65,75 +64,77 @@ export default function ConfirmGiftScreen() {
     giftType,
     collaboratorIds,
     sessionId,
+    hostName,
+    hostId,
   } = params;
 
   useEffect(() => {
     const loadGifts = async () => {
       if (!currentUser) return;
 
-      // --- Hardcoded Gifts for Collaborators ---
+      // // --- Hardcoded Gifts for Collaborators ---
       let collaboratorGifts: GiftCollab[] = [];
-      if (collaboratorIds && typeof collaboratorIds === "string") {
-        try {
-          const parsedIds = JSON.parse(collaboratorIds);
-          if (Array.isArray(parsedIds)) {
-            collaboratorGifts = await Promise.all(
-              parsedIds.map(async (id: string, index: number) => {
-                const { user } = await UserService.getUserById(id);
+      // if (collaboratorIds && typeof collaboratorIds === "string") {
+      //   try {
+      //     const parsedIds = JSON.parse(collaboratorIds);
+      //     if (Array.isArray(parsedIds)) {
+      //       collaboratorGifts = await Promise.all(
+      //         parsedIds.map(async (id: string, index: number) => {
+      //           const { user } = await UserService.getUserById(id);
 
-                // Random Gift Generation
-                const giftTypes: GiftCollab["type"][] = [
-                  "giftCard",
-                  "letter",
-                  "audioRecording",
-                  "playlist",
-                ];
-                const randomType =
-                  giftTypes[Math.floor(Math.random() * giftTypes.length)];
-                let mockContent: any = {};
-                const senderName = user?.display_name || "a friend";
+      //           // Random Gift Generation
+      //           const giftTypes: GiftCollab["type"][] = [
+      //             "giftCard",
+      //             "letter",
+      //             "audioRecording",
+      //             "playlist",
+      //           ];
+      //           const randomType =
+      //             giftTypes[Math.floor(Math.random() * giftTypes.length)];
+      //           let mockContent: any = {};
+      //           const senderName = user?.display_name || "a friend";
 
-                switch (randomType) {
-                  case "letter":
-                    mockContent = {
-                      text: `A special letter from ${senderName}.`,
-                    };
-                    break;
-                  case "giftCard":
-                    mockContent = { merchantName: "Starbucks" };
-                    break;
-                  case "audioRecording":
-                    mockContent = {
-                      text: `An audio message from ${senderName}.`,
-                    };
-                    break;
-                  case "playlist":
-                    mockContent = {
-                      text: `A playlist curated by ${senderName}.`,
-                    };
-                    break;
-                }
+      //           switch (randomType) {
+      //             case "letter":
+      //               mockContent = {
+      //                 text: `A special letter from ${senderName}.`,
+      //               };
+      //               break;
+      //             case "giftCard":
+      //               mockContent = { merchantName: "Starbucks" };
+      //               break;
+      //             case "audioRecording":
+      //               mockContent = {
+      //                 text: `An audio message from ${senderName}.`,
+      //               };
+      //               break;
+      //             case "playlist":
+      //               mockContent = {
+      //                 text: `A playlist curated by ${senderName}.`,
+      //               };
+      //               break;
+      //           }
 
-                // Create a mock gift for this collaborator
-                const mockGift: GiftCollab = {
-                  id: -(index + 1), // Use negative IDs to avoid collision with real gifts
-                  created_at: new Date().toISOString(),
-                  session_id: sessionId,
-                  receiver: friendName,
-                  sender_profile: user?.profile_icon_url || "",
-                  sender_id: id,
-                  sender: user?.display_name || "Collaborator",
-                  type: randomType,
-                  content: mockContent,
-                };
-                return mockGift;
-              })
-            );
-          }
-        } catch (e) {
-          console.error("Failed to parse collaborator IDs for mock gifts:", e);
-        }
-      }
+      //           // Create a mock gift for this collaborator
+      //           const mockGift: GiftCollab = {
+      //             id: -(index + 1), // Use negative IDs to avoid collision with real gifts
+      //             created_at: new Date().toISOString(),
+      //             session_id: sessionId,
+      //             receiver: friendName,
+      //             sender_profile: user?.profile_icon_url || "",
+      //             sender_id: id,
+      //             sender: user?.display_name || "Collaborator",
+      //             type: randomType,
+      //             content: mockContent,
+      //           };
+      //           return mockGift;
+      //         })
+      //       );
+      //     }
+      //   } catch (e) {
+      //     console.error("Failed to parse collaborator IDs for mock gifts:", e);
+      //   }
+      // }
       // --- End of Hardcoded Gifts ---
 
       // Fetch gifts from backend using sessionId
@@ -199,6 +200,7 @@ export default function ConfirmGiftScreen() {
 
   const handleBack = () => {
     console.log("Back pressed");
+    console.log("Params:", params);
     router.navigate({
       pathname: "/(tabs)/map/giftSelection",
       params: {
@@ -371,9 +373,10 @@ export default function ConfirmGiftScreen() {
     }
 
     // 2. Create a full list of all participants, including the host (current user)
-    const allParticipantIds = [currentUser.id, ...parsedCollaboratorIds].filter(
-      (id, index, self) => self.indexOf(id) === index
-    ); // Ensure unique IDs
+    const allParticipantIds = [
+      currentUser?.id,
+      ...parsedCollaboratorIds,
+    ].filter((id, index, self) => self.indexOf(id) === index); // Ensure unique IDs
 
     // 3. Fetch display names for all participants
     const participantProfiles = await Promise.all(

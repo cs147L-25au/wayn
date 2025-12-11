@@ -22,7 +22,6 @@ import {
   Dimensions,
   StyleSheet,
   View,
-  Alert,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Region } from "react-native-maps";
@@ -56,7 +55,6 @@ import { theme } from "../../../assets/theme";
 import { Friend, Location as LocationType } from "../../../types/index";
 import getEnv from "../../../utils/env";
 
-import MapInboxButton from "@/components/buttons/mapInbox";
 import GiftDraftsButton from "../../../components/buttons/giftDrafts";
 
 import { useAuth } from "../../../contexts/authContext";
@@ -177,9 +175,15 @@ export default function App() {
     gift_receiver_display_name: string;
     session_id: string;
     payload: {
+      createdAt?: string;
+      hostName: string;
+      hostId: string;
+      giftCount: any;
       sessionId: string;
-      friendName: string;
-      address: string;
+      friendName: string; // receiver display name
+      friendId: string;
+      locationAddress: string;
+      locationName: string;
       collaboratorIds: string[];
     };
   }
@@ -189,12 +193,13 @@ export default function App() {
     useState<CollabInviteNotification | null>(null);
 
   const handleAcceptCollab = () => {
-    Alert.alert("Gift collaboration feature coming soon!");
-    return;
+    // Alert.alert("Gift collaboration feature coming soon!");
+    // return;
     // Navigate to the collaborative gift basket
+    console.log("Collab invite payload:", collabInvite?.payload);
     router.push({
       pathname: "/(tabs)/map/collabGiftBasket",
-      params: collabInvite.payload,
+      params: collabInvite?.payload,
     });
     setCollabInvite(null);
   };

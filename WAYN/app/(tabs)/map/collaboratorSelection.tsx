@@ -1,23 +1,20 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Alert,
-  ScrollView,
-  Image,
-  TextInput,
-} from "react-native";
-import { UserService } from "../../../services/userService";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
-import { theme } from "../../../assets/theme";
 import { Feather } from "@expo/vector-icons";
-import { db } from "../../../utils/supabase";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import React, { useMemo, useState } from "react";
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../contexts/authContext";
+import { UserService } from "../../../services/userService";
 import { Friend } from "../../../types";
+import { db } from "../../../utils/supabase";
 
 export default function AddCollaboratorsScreen() {
   const { currentUser } = useAuth();
@@ -35,11 +32,30 @@ export default function AddCollaboratorsScreen() {
     audioUri,
     sessionId,
     giftCount,
+    collaboratorIds,
+    hostName,
+    hostId,
   } = params;
 
   const [searchText, setSearchText] = useState("");
   const [allFriends, setAllFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [parsedIds, setParsedIds] = useState([]);
+  const [host, setHost] = useState(null);
+  const [isCollaborator, setIsCollaborator] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (collaboratorIds) {
+        try {
+          setParsedIds(JSON.parse(collaboratorIds));
+        } catch (e) {}
+      }
+      if (hostName) {
+        setHost(hostName);
+      }
+    }, [collaboratorIds, hostName])
+  );
 
   const getInitialIds = () => {
     if (params.collaboratorIds && typeof params.collaboratorIds === "string") {
@@ -56,35 +72,74 @@ export default function AddCollaboratorsScreen() {
     useState<string[]>(getInitialIds);
 
   // loads list of collaborators
-  useEffect(() => {
-    const loadCollaborators = async () => {
-      if (!currentUser) return;
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadCollaborators = async () => {
+        if (!currentUser) return;
 
-      setLoading(true);
-      const result = await UserService.getFriends(currentUser.id);
-      if (result.success && result.friends) {
-        setAllFriends(result.friends);
-      } else {
-        console.error("Failed to load friends:", result.error);
-      }
-      setLoading(false);
-    };
+        setLoading(true);
+        const result = await UserService.getFriends(currentUser.id);
 
-    loadCollaborators();
-  }, [currentUser?.id, params.friendId]);
+        if (result.success && result.friends) {
+          setAllFriends(result.friends);
+        } else {
+          console.error("Failed to load friends:", result.error);
+        }
 
+        setLoading(false);
+      };
+
+      loadCollaborators();
+
+      // optional cleanup if needed
+      return () => {};
+    }, [hostName])
+  );
+
+  // const filteredCollaborators = useMemo(() => {
+  //   return allFriends
+  //     .filter(
+  //       // Always exclude the gift recipient
+  //       (friend) => friend.id !== params.friendId
+  //     )
+  //     .filter((friend) => {
+  //       // Filter by search text
+  //       const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase();
+  //       return fullName.includes(searchText.toLowerCase());
+  //     });
+  // }, [allFriends, params.friendId, searchText, params.hostName, parsedIds]);
   const filteredCollaborators = useMemo(() => {
+    const isCollaborator = parsedIds.includes(currentUser?.id);
+    setIsCollaborator(isCollaborator);
+    // console.log("isCollaborator", isCollaborator);
+    // console.log("hostId:", hostId);
+    // console.log("currentUserId", currentUser?.id);
+
+    const hostId = params.hostId; // If you already know the hostId elsewhere, adjust this accordingly
+
     return allFriends
-      .filter(
-        // Always exclude the gift recipient
-        (friend) => friend.id !== params.friendId
-      )
       .filter((friend) => {
-        // Filter by search text
+        // 1. Exclude the gift recipient always
+        if (!isCollaborator && friend.id === params.friendId) return false;
+
+        // 2. If user is a collaborator
+        if (isCollaborator) {
+          // Show ONLY:
+          // - host
+          // - collaborators
+          // - the user themself
+          return friend.id === hostId || parsedIds.includes(friend.id);
+        }
+
+        // 3. Host sees all friends
+        return true;
+      })
+      .filter((friend) => {
+        // Search filter
         const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase();
         return fullName.includes(searchText.toLowerCase());
       });
-  }, [allFriends, params.friendId, searchText]);
+  }, [allFriends, params.friendId, searchText, currentUser?.id]);
 
   const handleToggleCollaborator = (id: string) => {
     setAddedCollaboratorIds((prev) =>
@@ -131,12 +186,15 @@ export default function AddCollaboratorsScreen() {
           ? params.sessionId[0]
           : params.sessionId,
         payload: {
-          sessionId: Array.isArray(params.sessionId)
-            ? params.sessionId[0]
-            : params.sessionId,
-          friendName: Array.isArray(params.friendName)
-            ? params.friendName[0]
-            : params.friendName,
+          sessionId: sessionId,
+          friendName: friendName,
+          friendId: friendId,
+          giftCount: giftCount,
+          collaboratorIds: JSON.stringify(addedCollaboratorIds),
+          hostName: currentUser.display_name,
+          hostId: currentUser.id,
+          locationName: locationName,
+          locationAddress: locationAddress,
         },
       }));
 
@@ -167,7 +225,12 @@ export default function AddCollaboratorsScreen() {
           <Feather name="chevron-left" size={28} color="#000" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Add Collaborators</Text>
+        {!isCollaborator && (
+          <Text style={styles.headerTitle}>Add Collaborators</Text>
+        )}
+        {isCollaborator && (
+          <Text style={styles.headerTitle}>Collaborators</Text>
+        )}
 
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <Feather name="x" size={28} color="#000" />
@@ -222,40 +285,44 @@ export default function AddCollaboratorsScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  isAdded ? styles.removeButton : styles.addButton,
-                ]}
-                onPress={() => handleToggleCollaborator(collab.id)}
-              >
-                <Text
+              {!isCollaborator && (
+                <TouchableOpacity
                   style={[
-                    styles.actionButtonText,
-                    isAdded ? styles.removeButtonText : styles.addButtonText,
+                    styles.actionButton,
+                    isAdded ? styles.removeButton : styles.addButton,
                   ]}
+                  onPress={() => handleToggleCollaborator(collab.id)}
                 >
-                  {isAdded ? "Remove" : "Add"}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.actionButtonText,
+                      isAdded ? styles.removeButtonText : styles.addButtonText,
+                    ]}
+                  >
+                    {isAdded ? "Remove" : "Add"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })}
       </ScrollView>
 
       {/* Done Button */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.doneButton,
-            addedCollaboratorIds.length === 0 && styles.doneButtonDisabled,
-          ]}
-          onPress={handleDone}
-          disabled={addedCollaboratorIds.length === 0}
-        >
-          <Text style={styles.doneButtonText}>Done Adding</Text>
-        </TouchableOpacity>
-      </View>
+      {!isCollaborator && (
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={[
+              styles.doneButton,
+              addedCollaboratorIds.length === 0 && styles.doneButtonDisabled,
+            ]}
+            onPress={handleDone}
+            disabled={addedCollaboratorIds.length === 0}
+          >
+            <Text style={styles.doneButtonText}>Done Adding</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

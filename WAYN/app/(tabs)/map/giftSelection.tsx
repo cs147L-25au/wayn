@@ -24,6 +24,8 @@ export default function GiftSelectionScreen() {
     locationAddress,
     collaboratorIds,
     giftCount,
+    hostName,
+    hostId,
     sessionId: paramSessionId,
   } = params;
   const [collaboratorCount, setCollaboratorCount] = useState(0);
@@ -87,6 +89,8 @@ export default function GiftSelectionScreen() {
         collaboratorIds,
         sessionId: currentSessionId,
         giftCount,
+        hostName: hostName,
+        hostId: hostId,
       },
     });
     // Navigate to collaborate flow or show collaborate modal
