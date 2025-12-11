@@ -50,6 +50,44 @@ interface GiftContentPopupProps {
         points: Array<{ x: number; y: number }>;
       }>;
     }>;
+    // ADD THIS:
+    gifts?: Array<{
+      id: number;
+      created_at: string;
+      session_id: string;
+      receiver: string;
+      sender_profile: string;
+      sender_id: string;
+      sender: string;
+      type: string;
+      gift_type?: string;
+      content: {
+        merchant?: string;
+        merchantName?: string;
+        amount?: string;
+        designId?: string;
+        audioRecording?: string;
+        playlistName?: string;
+        songs?: Array<{ id: string; title: string; artist: string }>;
+        letter?: Array<{
+          id: string;
+          type: "text" | "image" | "sticker" | "draw";
+          content?: string;
+          aspectRatio?: number;
+          size?: number;
+          x?: number;
+          y?: number;
+          rotation?: number;
+          strokes?: Array<{
+            id: string;
+            color: string;
+            thickness: number;
+            points: Array<{ x: number; y: number }>;
+          }>;
+        }>;
+      };
+      address: string;
+    }>;
   };
   onComplete: () => void;
 }
@@ -66,6 +104,9 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
 }) => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [playingCollabAudioId, setPlayingCollabAudioId] = useState<
+    number | null
+  >(null);
   const player = useAudioPlayer();
   const playerStatus = useAudioPlayerStatus(player);
 
@@ -162,6 +203,8 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
         return "Letter";
       case "playlist":
         return "Playlist";
+      case "collaborative":
+        return "Collaborative Gift";
       default:
         return "Gift";
     }
@@ -220,6 +263,7 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
           if (isNearEnd) {
             console.log("🔄 Resetting to beginning");
             player.seekTo(0);
+            setPlayingCollabAudioId(null);
             // Give it a moment to seek
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
@@ -457,6 +501,7 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
                         </View>
                       );
                     }
+
                     return null;
                   })}
               </>
@@ -465,7 +510,322 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
         </View>
       );
     }
+    if (giftType === "collaborative") {
+      const gifts = content.gifts || [];
 
+      if (gifts.length === 0) {
+        return (
+          <View style={styles.playlistContainer}>
+            <Text style={[theme.text.body3, styles.playlistEmpty]}>
+              No gifts in this collaboration
+            </Text>
+          </View>
+        );
+      }
+
+      return (
+        <ScrollView
+          style={styles.collaborativeGiftsScroll}
+          contentContainerStyle={styles.collaborativeGiftsContent}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+        >
+          {gifts.map((gift: any, index: number) => {
+            const giftType = gift.type || gift.gift_type;
+            const giftContent = gift.content || {};
+
+            return (
+              <View key={gift.id || index} style={styles.collaborativeGiftItem}>
+                {/* Header showing sender */}
+                <View style={styles.collaborativeGiftHeader}>
+                  {gift.sender_profile && (
+                    <Image
+                      source={{ uri: gift.sender_profile }}
+                      style={styles.collaborativeSenderIcon}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <Text
+                    style={[
+                      theme.text.body2Bold,
+                      styles.collaborativeSenderName,
+                    ]}
+                  >
+                    {gift.sender}
+                  </Text>
+                </View>
+
+                {/* Gift content based on type */}
+                {giftType === "giftCard" && (
+                  <View style={styles.giftCardContainer}>
+                    <GiftCardRenderer
+                      designId={giftContent.designId || "design1"}
+                      amount={giftContent.amount || "0"}
+                      merchantName={
+                        giftContent.merchant ||
+                        giftContent.merchantName ||
+                        "Merchant"
+                      }
+                    />
+                  </View>
+                )}
+
+                {giftType === "audioRecording" &&
+                  (giftContent.audioUri || giftContent.audioRecording) && (
+                    <View style={styles.audioContainer}>
+                      {giftContent.audioUri ? (
+                        <>
+                          <TouchableOpacity
+                            style={styles.audioPlayButton}
+                            onPress={async () => {
+                              try {
+                                // Check if this specific audio is currently playing
+                                const isThisAudioPlaying =
+                                  playingCollabAudioId === gift.id &&
+                                  player.playing;
+
+                                if (isThisAudioPlaying) {
+                                  // Pause this audio
+                                  console.log("⏸️ Pausing collaborative audio");
+                                  player.pause();
+                                  setPlayingCollabAudioId(null);
+                                } else {
+                                  // Load and play this audio
+                                  console.log(
+                                    "🔄 Loading collaborative audio:",
+                                    giftContent.audioUri
+                                  );
+                                  if (player.playing) {
+                                    player.pause();
+                                  }
+                                  player.replace({ uri: giftContent.audioUri });
+                                  setPlayingCollabAudioId(gift.id);
+
+                                  // Wait for it to load
+                                  await new Promise((resolve) =>
+                                    setTimeout(resolve, 800)
+                                  );
+
+                                  console.log("▶️ Playing collaborative audio");
+                                  player.play();
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "❌ Failed to play collaborative audio:",
+                                  error
+                                );
+                                setPlayingCollabAudioId(null);
+                              }
+                            }}
+                          >
+                            <Feather
+                              name={
+                                playingCollabAudioId === gift.id &&
+                                player.playing
+                                  ? "pause"
+                                  : "play"
+                              }
+                              size={24}
+                              color="#FFF"
+                            />
+                          </TouchableOpacity>
+                          <Text style={[theme.text.body3, styles.audioText]}>
+                            🎵 Audio recording from {gift.sender}
+                          </Text>
+                          <Text
+                            style={[
+                              theme.text.body3,
+                              {
+                                color: theme.colors.textSecondary,
+                                fontStyle: "italic",
+                                fontSize: 11,
+                              },
+                            ]}
+                          >
+                            {playingCollabAudioId === gift.id && player.playing
+                              ? "Tap to pause"
+                              : "Tap to play"}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.audioPlayButtonDisabled}>
+                            <Feather
+                              name="alert-circle"
+                              size={24}
+                              color="#FFF"
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              theme.text.body3,
+                              styles.audioText,
+                              { color: theme.colors.textSecondary },
+                            ]}
+                          >
+                            Legacy audio format - please re-record
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  )}
+                {giftType === "playlist" && (
+                  <View style={styles.playlistContainer}>
+                    <Text style={[theme.text.headline4, styles.playlistName]}>
+                      {giftContent.playlistName || "Playlist"}
+                    </Text>
+                    {giftContent.songs && giftContent.songs.length > 0 ? (
+                      <View style={styles.playlistSongsList}>
+                        {giftContent.songs
+                          .slice(0, 3)
+                          .map((song: any, songIndex: number) => (
+                            <View
+                              key={song.id || songIndex}
+                              style={styles.playlistSongItem}
+                            >
+                              <View style={styles.playlistAlbumArt} />
+                              <View style={styles.playlistSongInfo}>
+                                <Text
+                                  style={[
+                                    theme.text.body3,
+                                    styles.playlistSongTitle,
+                                  ]}
+                                >
+                                  {song.title}
+                                </Text>
+                                <Text
+                                  style={[
+                                    theme.text.body3,
+                                    styles.playlistSongArtist,
+                                  ]}
+                                >
+                                  {song.artist}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        {giftContent.songs.length > 3 && (
+                          <Text
+                            style={[
+                              theme.text.body3,
+                              { color: theme.colors.textSecondary },
+                            ]}
+                          >
+                            +{giftContent.songs.length - 3} more songs
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Text style={[theme.text.body3, styles.playlistEmpty]}>
+                        No songs in this playlist
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {giftType === "letter" && giftContent.letter && (
+                  <View style={styles.letterBox}>
+                    {giftContent.letter
+                      .filter(
+                        (b: any) => b.type !== "sticker" && b.type !== "draw"
+                      )
+                      .map((block: any) => {
+                        if (block.type === "text") {
+                          return (
+                            <View key={block.id} style={styles.letterTextBlock}>
+                              <Text style={styles.letterText}>
+                                {block.content || ""}
+                              </Text>
+                            </View>
+                          );
+                        }
+                        if (block.type === "image" && block.content) {
+                          return (
+                            <Image
+                              key={block.id}
+                              source={{ uri: block.content }}
+                              style={[
+                                styles.letterImage,
+                                block.aspectRatio && {
+                                  aspectRatio: block.aspectRatio,
+                                },
+                              ]}
+                              resizeMode="contain"
+                            />
+                          );
+                        }
+                        return null;
+                      })}
+
+                    {/* Stickers overlay */}
+                    {giftContent.letter
+                      .filter((b: any) => b.type === "sticker")
+                      .map((block: any) => (
+                        <View
+                          key={block.id}
+                          style={[
+                            styles.letterSticker,
+                            {
+                              left: block.x || 0,
+                              top: block.y || 0,
+                              width: block.size || 120,
+                              height: block.size || 120,
+                              transform: [
+                                { rotate: `${block.rotation || 0}rad` },
+                              ],
+                            },
+                          ]}
+                        >
+                          <Image
+                            source={stickers[block.content as StickerKey]}
+                            style={styles.letterStickerImage}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      ))}
+
+                    {/* Draw blocks overlay */}
+                    {giftContent.letter
+                      .filter((b: any) => b.type === "draw")
+                      .map((block: any) => {
+                        if (block.strokes) {
+                          return (
+                            <View
+                              key={block.id}
+                              style={styles.letterDrawContainer}
+                            >
+                              <Svg
+                                style={StyleSheet.absoluteFill}
+                                width="100%"
+                                height="100%"
+                              >
+                                {block.strokes.map((stroke: any) => (
+                                  <Polyline
+                                    key={stroke.id}
+                                    points={stroke.points
+                                      .map((p: any) => `${p.x},${p.y}`)
+                                      .join(" ")}
+                                    fill="none"
+                                    stroke={stroke.color}
+                                    strokeWidth={stroke.thickness}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                ))}
+                              </Svg>
+                            </View>
+                          );
+                        }
+                        return null;
+                      })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      );
+    }
     return null;
   };
 
@@ -479,6 +839,8 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
         return "Save";
       case "letter":
         return "Save";
+      case "collaborative":
+        return "Save All";
       default:
         return "Done";
     }
@@ -505,6 +867,11 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
         return {
           title: "Letter Saved!",
           subtitle: "Letter has been saved to your photos.",
+        };
+      case "collaborative":
+        return {
+          title: "Gifts Saved!",
+          subtitle: "All gifts have been saved.",
         };
       default:
         return {
@@ -773,6 +1140,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 5,
     pointerEvents: "none",
+  },
+  collaborativeGiftsScroll: {
+    width: "100%",
+    maxHeight: 500,
+  },
+  collaborativeGiftsContent: {
+    paddingBottom: theme.spacing.md,
+  },
+  collaborativeGiftItem: {
+    marginBottom: theme.spacing.xl,
+    paddingBottom: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+  },
+  collaborativeGiftHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  collaborativeSenderIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.waynOrange,
+  },
+  collaborativeSenderName: {
+    color: theme.colors.textPrimary,
   },
 });
 

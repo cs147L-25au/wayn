@@ -351,29 +351,93 @@ const AudioRecordingScreen = () => {
     }
     console.log("Add Gift pressed");
 
-    //  Insert gift into gift basket table in supabase
-    const giftItemData: any = {
-      sender_display_name: currentUser?.display_name,
-      receiver_display_name: friendName,
-      sender_id: currentUser?.id,
-      receiver_id: friendId,
-      address: locationAddress,
-      gift_type: "audioRecording",
-      content: {
-        audioRecording: recordingUri,
-      },
-      session_id: sessionId,
-    };
+    if (!recordingUri) {
+      Alert.alert("Error", "No recording found");
+      return;
+    }
+
     try {
+      // Upload audio file to Supabase Storage
+      console.log("📤 Uploading audio file...");
+
+      // Generate unique filename with user folder structure
+      const timestamp = Date.now();
+      const filename = `${currentUser?.id}/${timestamp}.m4a`;
+
+      console.log("Current user ID:", currentUser?.id);
+      console.log("Filename to upload:", filename);
+
+      // Read the file using fetch (modern approach for React Native/Expo)
+      console.log("Reading file...");
+      const response = await fetch(recordingUri);
+      const blob = await response.blob();
+
+      console.log("File read successfully, size:", blob.size);
+
+      // Convert blob to ArrayBuffer
+      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(blob);
+      });
+
+      console.log("Uploading to Supabase Storage...");
+      const { data: uploadData, error: uploadError } = await db.storage
+        .from("audio-recordings")
+        .upload(filename, arrayBuffer, {
+          contentType: "audio/m4a",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("❌ Upload failed:", uploadError);
+        Alert.alert("Error", `Failed to upload audio: ${uploadError.message}`);
+        return;
+      }
+
+      console.log("✅ Upload successful:", uploadData);
+
+      // Get signed URL (valid for 1 year)
+      console.log("Creating signed URL...");
+      const { data: urlData, error: urlError } = await db.storage
+        .from("audio-recordings")
+        .createSignedUrl(filename, 60 * 60 * 24 * 365); // Valid for 1 year
+
+      if (urlError) {
+        console.error("❌ Error creating signed URL:", urlError);
+        Alert.alert("Error", "Failed to create audio URL");
+        return;
+      }
+
+      const signedUrl = urlData.signedUrl;
+      console.log("🔗 Signed URL created:", signedUrl);
+
+      // Insert gift into gift basket table in supabase with the SIGNED URL
+      const giftItemData: any = {
+        sender_display_name: currentUser?.display_name,
+        receiver_display_name: friendName,
+        sender_id: currentUser?.id,
+        receiver_id: friendId,
+        address: locationAddress,
+        gift_type: "audioRecording",
+        content: {
+          audioUri: signedUrl, // CHANGED: Use audioUri instead of audioRecording
+          storagePath: filename,
+        },
+        session_id: sessionId,
+      };
+
       const { data, error } = await db
         .from("collab_gift_basket")
         .upsert(giftItemData, {
           onConflict: "session_id, sender_id, receiver_id, gift_type, address",
         })
         .select();
+
       if (error) {
         console.error("Error inserting collab_gift_basket:", error);
-        // Even if upsert fails, try to get the latest count
+        return;
       }
 
       // Fetch the latest gift count for the session
@@ -405,6 +469,7 @@ const AudioRecordingScreen = () => {
       });
     } catch (err) {
       console.error("Unexpected error inserting collab_gift_basket:", err);
+      Alert.alert("Error", "Failed to add gift");
     }
   };
 

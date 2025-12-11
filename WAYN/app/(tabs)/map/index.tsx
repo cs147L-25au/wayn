@@ -378,75 +378,77 @@ export default function App() {
 
   // Add navigation handlers:
   const handleStartNavigation = async () => {
-  if (!selectedReceivedGift || !location) return;
+    if (!selectedReceivedGift || !location) return;
 
-  console.log("Starting navigation to gift...");
+    console.log("Starting navigation to gift...");
 
-  const result = await NavigationService.getRoute(
-    {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    },
-    {
-      latitude: selectedReceivedGift.latitude,
-      longitude: selectedReceivedGift.longitude,
-    },
-    travelMode
-  );
+    const result = await NavigationService.getRoute(
+      {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      },
+      {
+        latitude: selectedReceivedGift.latitude,
+        longitude: selectedReceivedGift.longitude,
+      },
+      travelMode
+    );
 
-  if (result.success && result.route) {
-    const decodedRoute = NavigationService.decodePolyline(result.route.polyline);
-    
-    // Set route data FIRST, before setting isNavigating
-    setNavigationRoute(decodedRoute);
-    setCurrentRouteData(result.route);
-    setCurrentStepIndex(0);
+    if (result.success && result.route) {
+      const decodedRoute = NavigationService.decodePolyline(
+        result.route.polyline
+      );
 
-    // Close the bottom sheet
-    bottomSheetRef.current?.close();
-    setOverlayView("list");
+      // Set route data FIRST, before setting isNavigating
+      setNavigationRoute(decodedRoute);
+      setCurrentRouteData(result.route);
+      setCurrentStepIndex(0);
 
-    // Fit map to show entire route
-    if (decodedRoute.length > 0) {
-      const coordinates = [
-        {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        },
-        ...decodedRoute,
-      ];
+      // Close the bottom sheet
+      bottomSheetRef.current?.close();
+      setOverlayView("list");
 
-      // Calculate bounds
-      const latitudes = coordinates.map((c) => c.latitude);
-      const longitudes = coordinates.map((c) => c.longitude);
+      // Fit map to show entire route
+      if (decodedRoute.length > 0) {
+        const coordinates = [
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          },
+          ...decodedRoute,
+        ];
 
-      const minLat = Math.min(...latitudes);
-      const maxLat = Math.max(...latitudes);
-      const minLng = Math.min(...longitudes);
-      const maxLng = Math.max(...longitudes);
+        // Calculate bounds
+        const latitudes = coordinates.map((c) => c.latitude);
+        const longitudes = coordinates.map((c) => c.longitude);
 
-      const centerLat = (minLat + maxLat) / 2;
-      const centerLng = (minLng + maxLng) / 2;
-      const deltaLat = (maxLat - minLat) * 1.5; // Add padding
-      const deltaLng = (maxLng - minLng) * 1.5;
+        const minLat = Math.min(...latitudes);
+        const maxLat = Math.max(...latitudes);
+        const minLng = Math.min(...longitudes);
+        const maxLng = Math.max(...longitudes);
 
-      setMapRegion({
-        latitude: centerLat,
-        longitude: centerLng,
-        latitudeDelta: Math.max(deltaLat, 0.01),
-        longitudeDelta: Math.max(deltaLng, 0.01),
-      });
+        const centerLat = (minLat + maxLat) / 2;
+        const centerLng = (minLng + maxLng) / 2;
+        const deltaLat = (maxLat - minLat) * 1.5; // Add padding
+        const deltaLng = (maxLng - minLng) * 1.5;
+
+        setMapRegion({
+          latitude: centerLat,
+          longitude: centerLng,
+          latitudeDelta: Math.max(deltaLat, 0.01),
+          longitudeDelta: Math.max(deltaLng, 0.01),
+        });
+      }
+
+      // Wait a moment for map to update, then enable navigation mode
+      setTimeout(() => {
+        setIsNavigating(true);
+      }, 300);
+    } else {
+      console.error("Failed to get route:", result.error);
+      Alert.alert("Navigation Error", "Unable to get directions to this gift.");
     }
-
-    // Wait a moment for map to update, then enable navigation mode
-    setTimeout(() => {
-      setIsNavigating(true);
-    }, 300);
-  } else {
-    console.error("Failed to get route:", result.error);
-    Alert.alert("Navigation Error", "Unable to get directions to this gift.");
-  }
-};
+  };
 
   const handleStopNavigation = () => {
     setIsNavigating(false);
@@ -1327,7 +1329,6 @@ export default function App() {
   }, [currentUser?.id, selectedGift?.id]);
 
   // Subscribe to COLLABORATIVE gifts
-  // Subscribe to COLLABORATIVE gifts
   useEffect(() => {
     if (!currentUser) return;
 
@@ -1382,7 +1383,26 @@ export default function App() {
 
           setReceivedGifts((prev) => [...prev, receivedGift]);
           setSelectedReceivedGift(receivedGift);
-          setShowGiftReceivedPopup(true);
+
+          // ✅ ADD THIS: Check if user is within 500 ft of the gift
+          if (location) {
+            const distance = calculateDistance(
+              location.coords.latitude,
+              location.coords.longitude,
+              receivedGift.latitude,
+              receivedGift.longitude
+            );
+
+            if (distance <= 500) {
+              // Show "arrived" popup instead of "received" popup
+              setShowArrivedPopup(true);
+            } else {
+              // Show normal "received" popup
+              setShowGiftReceivedPopup(true);
+            }
+          } else {
+            setShowGiftReceivedPopup(true);
+          }
         }
       )
       .subscribe();
@@ -1390,7 +1410,50 @@ export default function App() {
     return () => {
       channel.unsubscribe();
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, location]);
+
+  // Subscribe to collaborative gift status updates (for senders - when recipient opens gift)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const channel = db
+      .channel("sent_gifts_collab_status_updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "sent_gifts_collab",
+        },
+        (payload) => {
+          console.log("Collaborative gift status updated:", payload);
+          const updatedGift = payload.new;
+
+          // Check if current user is the host of this collaborative gift
+          if (updatedGift.sender_ids?.host !== currentUser.id) {
+            return; // Not our gift
+          }
+
+          // If gift was marked as opened, remove from map
+          if (updatedGift.status === "opened") {
+            const giftId = updatedGift.id.toString();
+            setPlacedGifts((prev) => prev.filter((g) => g.id !== giftId));
+
+            // Close overlay if this was the selected gift
+            if (selectedGift?.id === giftId) {
+              setSelectedGift(null);
+              setOverlayView("list");
+              bottomSheetRef.current?.snapToIndex(0);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUser?.id, selectedGift?.id]);
 
   // Add this helper function to calculate distance
   const calculateDistance = (
@@ -1460,8 +1523,14 @@ export default function App() {
       console.log("Marking gift as opened:", selectedReceivedGift.id);
       const giftId_num = Number(selectedReceivedGift.id);
 
+      // ✅ ADD THIS: Check if collaborative
+      const isCollaborative =
+        selectedReceivedGift.isCollaborative ||
+        selectedReceivedGift.giftType === "collaborative";
+      const tableName = isCollaborative ? "sent_gifts_collab" : "sent_gifts";
+
       const { error } = await db
-        .from("sent_gifts")
+        .from(tableName) // ✅ Use correct table
         .update({ status: "opened" })
         .eq("id", giftId_num);
 
@@ -1916,36 +1985,40 @@ export default function App() {
             />
           )}
 
-          {overlayView === "receivedGiftDetail" && selectedReceivedGift && !isNavigating && (
-            <ReceivedGiftDetailOverlay
-              bottomSheetRef={bottomSheetRef}
-              snapPoints={snapPoints}
-              handleSheetChanges={handleSheetChanges}
-              gift={selectedReceivedGift}
-              onBack={handleBackToList}
-              onNavigate={handleStartNavigation}
-            />
-          )}
-
-          {overlayView === "locationSelection" && selectedFriend && !isNavigating &&  (
-            <>
-              <LocationSelectionOverlay
+          {overlayView === "receivedGiftDetail" &&
+            selectedReceivedGift &&
+            !isNavigating && (
+              <ReceivedGiftDetailOverlay
                 bottomSheetRef={bottomSheetRef}
-                snapPoints={locationSnapPoints}
+                snapPoints={snapPoints}
                 handleSheetChanges={handleSheetChanges}
-                locations={locationsToShow}
-                selectedLocationId={selectedLocation?.id || null}
-                onLocationSelect={handleLocationSelect}
-                friendName={selectedFriend.firstName}
-                isPOISelected={!!poiSelectedLocation}
+                gift={selectedReceivedGift}
+                onBack={handleBackToList}
+                onNavigate={handleStartNavigation}
               />
-              <BottomCTABar
-                buttonText="Next"
-                onPress={handleNextToGiftSelection}
-                disabled={!selectedLocation}
-              />
-            </>
-          )}
+            )}
+
+          {overlayView === "locationSelection" &&
+            selectedFriend &&
+            !isNavigating && (
+              <>
+                <LocationSelectionOverlay
+                  bottomSheetRef={bottomSheetRef}
+                  snapPoints={locationSnapPoints}
+                  handleSheetChanges={handleSheetChanges}
+                  locations={locationsToShow}
+                  selectedLocationId={selectedLocation?.id || null}
+                  onLocationSelect={handleLocationSelect}
+                  friendName={selectedFriend.firstName}
+                  isPOISelected={!!poiSelectedLocation}
+                />
+                <BottomCTABar
+                  buttonText="Next"
+                  onPress={handleNextToGiftSelection}
+                  disabled={!selectedLocation}
+                />
+              </>
+            )}
 
           {showingGiftDrop && (
             <View
