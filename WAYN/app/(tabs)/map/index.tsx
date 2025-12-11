@@ -64,6 +64,15 @@ import { NudgeData, NudgeService } from "../../../services/nudgeService";
 import { UserService } from "../../../services/userService";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+import NavigationHeader from "../../../components/navigation/navigationHeader";
+import NavigationFooter from "../../../components/navigation/navigationFooter";
+import {
+  NavigationService,
+  RouteData,
+  TravelMode,
+} from "../../../services/navigationService";
+
 const { GOOGLE_MAPS_API_KEY } = getEnv();
 
 const mockLocations: LocationType[] = [
@@ -312,6 +321,16 @@ export default function App() {
     undefined
   );
 
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationRoute, setNavigationRoute] = useState<
+    Array<{ latitude: number; longitude: number }>
+  >([]);
+  const [currentRouteData, setCurrentRouteData] = useState<RouteData | null>(
+    null
+  );
+  const [travelMode, setTravelMode] = useState<TravelMode>("WALKING");
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
   const { currentUser } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
@@ -340,6 +359,170 @@ export default function App() {
     const secondInitial = parts.slice(1).join(" ")?.[0]?.toUpperCase() || "";
     return `${firstInitial}${secondInitial}`.trim().slice(0, 2);
   };
+
+  // Helper function to calculate ETA:
+  const calculateETA = (durationInSeconds: number): string => {
+    const now = new Date();
+    const eta = new Date(now.getTime() + durationInSeconds * 1000);
+    return eta.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // Add navigation handlers:
+  const handleStartNavigation = async () => {
+  if (!selectedReceivedGift || !location) return;
+
+  console.log("Starting navigation to gift...");
+
+  const result = await NavigationService.getRoute(
+    {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    },
+    {
+      latitude: selectedReceivedGift.latitude,
+      longitude: selectedReceivedGift.longitude,
+    },
+    travelMode
+  );
+
+  if (result.success && result.route) {
+    const decodedRoute = NavigationService.decodePolyline(result.route.polyline);
+    
+    // Set route data FIRST, before setting isNavigating
+    setNavigationRoute(decodedRoute);
+    setCurrentRouteData(result.route);
+    setCurrentStepIndex(0);
+
+    // Close the bottom sheet
+    bottomSheetRef.current?.close();
+    setOverlayView("list");
+
+    // Fit map to show entire route
+    if (decodedRoute.length > 0) {
+      const coordinates = [
+        {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        },
+        ...decodedRoute,
+      ];
+
+      // Calculate bounds
+      const latitudes = coordinates.map((c) => c.latitude);
+      const longitudes = coordinates.map((c) => c.longitude);
+
+      const minLat = Math.min(...latitudes);
+      const maxLat = Math.max(...latitudes);
+      const minLng = Math.min(...longitudes);
+      const maxLng = Math.max(...longitudes);
+
+      const centerLat = (minLat + maxLat) / 2;
+      const centerLng = (minLng + maxLng) / 2;
+      const deltaLat = (maxLat - minLat) * 1.5; // Add padding
+      const deltaLng = (maxLng - minLng) * 1.5;
+
+      setMapRegion({
+        latitude: centerLat,
+        longitude: centerLng,
+        latitudeDelta: Math.max(deltaLat, 0.01),
+        longitudeDelta: Math.max(deltaLng, 0.01),
+      });
+    }
+
+    // Wait a moment for map to update, then enable navigation mode
+    setTimeout(() => {
+      setIsNavigating(true);
+    }, 300);
+  } else {
+    console.error("Failed to get route:", result.error);
+    Alert.alert("Navigation Error", "Unable to get directions to this gift.");
+  }
+};
+
+  const handleStopNavigation = () => {
+    setIsNavigating(false);
+    setNavigationRoute([]);
+    setCurrentRouteData(null);
+    setCurrentStepIndex(0);
+
+    // Optionally recenter on user's location
+    if (location) {
+      setMapRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+    }
+  };
+
+  const handleToggleTravelMode = async () => {
+    const newMode: TravelMode =
+      travelMode === "WALKING" ? "DRIVING" : "WALKING";
+    setTravelMode(newMode);
+
+    // Recalculate route with new mode
+    if (selectedReceivedGift && location) {
+      const result = await NavigationService.getRoute(
+        {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        },
+        {
+          latitude: selectedReceivedGift.latitude,
+          longitude: selectedReceivedGift.longitude,
+        },
+        newMode
+      );
+
+      if (result.success && result.route) {
+        const decodedRoute = NavigationService.decodePolyline(
+          result.route.polyline
+        );
+        setNavigationRoute(decodedRoute);
+        setCurrentRouteData(result.route);
+      }
+    }
+  };
+
+  // Add effect to check if user has arrived at gift:
+  useEffect(() => {
+    if (!isNavigating || !selectedReceivedGift || !location) return;
+
+    const distance = calculateDistance(
+      location.coords.latitude,
+      location.coords.longitude,
+      selectedReceivedGift.latitude,
+      selectedReceivedGift.longitude
+    );
+
+    // If within 500 feet, user has arrived
+    if (distance <= 500) {
+      handleStopNavigation();
+      Alert.alert(
+        "You've Arrived!",
+        "You're now close enough to open your gift!",
+        [
+          {
+            text: "Open Gift",
+            onPress: () => setShowArrivedPopup(true),
+          },
+        ]
+      );
+
+      // Center map on gift
+      setMapRegion({
+        latitude: selectedReceivedGift.latitude,
+        longitude: selectedReceivedGift.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  }, [location, isNavigating, selectedReceivedGift]);
 
   // Load friends from backend
   const loadFriends = async () => {
@@ -1140,69 +1323,69 @@ export default function App() {
 
   // Subscribe to COLLABORATIVE gifts
   // Subscribe to COLLABORATIVE gifts
-useEffect(() => {
-  if (!currentUser) return;
+  useEffect(() => {
+    if (!currentUser) return;
 
-  const channel = db
-    .channel(`collab_gifts_for_${currentUser.id}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "sent_gifts_collab",
-        filter: `receiver_id=eq.${currentUser.id}`,
-      },
-      async (payload) => {
-        console.log("New COLLABORATIVE gift received:", payload);
-        const newGift = payload.new;
+    const channel = db
+      .channel(`collab_gifts_for_${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sent_gifts_collab",
+          filter: `receiver_id=eq.${currentUser.id}`,
+        },
+        async (payload) => {
+          console.log("New COLLABORATIVE gift received:", payload);
+          const newGift = payload.new;
 
-        // Fetch all sender icons
-        const allSenderIds = [
-          newGift.sender_ids.host,
-          ...(newGift.sender_ids.collaborators || []),
-        ];
-        
-        const collaboratorIcons = await Promise.all(
-          allSenderIds.slice(0, 3).map(async (id) => {
-            const { user } = await UserService.getUserById(id);
-            return user?.profile_icon_url
-              ? { uri: user.profile_icon_url }
-              : require("../../../assets/userIcons/jillicon.png");
-          })
-        );
+          // Fetch all sender icons
+          const allSenderIds = [
+            newGift.sender_ids.host,
+            ...(newGift.sender_ids.collaborators || []),
+          ];
 
-        const senderIcon = collaboratorIcons[0]; // Host is first in the array
+          const collaboratorIcons = await Promise.all(
+            allSenderIds.slice(0, 3).map(async (id) => {
+              const { user } = await UserService.getUserById(id);
+              return user?.profile_icon_url
+                ? { uri: user.profile_icon_url }
+                : require("../../../assets/userIcons/jillicon.png");
+            })
+          );
 
-        const receivedGift: ReceivedGift = {
-          id: newGift.id.toString(),
-          senderId: newGift.sender_ids.host,
-          senderName: newGift.sender_display_names.host,
-          senderIcon: senderIcon,
-          latitude: parseFloat(newGift.latitude) || 0,
-          longitude: parseFloat(newGift.longitude) || 0,
-          giftType: "collaborative", 
-          dateSent: new Date(newGift.created_at).toLocaleDateString(),
-          address: newGift.address,
-          content: {
-            ...newGift.content,
-            senderDisplayNames: newGift.sender_display_names,
-          },
-          isCollaborative: true, 
-          collaboratorIcons: collaboratorIcons, 
-        };
+          const senderIcon = collaboratorIcons[0]; // Host is first in the array
 
-        setReceivedGifts((prev) => [...prev, receivedGift]);
-        setSelectedReceivedGift(receivedGift);
-        setShowGiftReceivedPopup(true);
-      }
-    )
-    .subscribe();
+          const receivedGift: ReceivedGift = {
+            id: newGift.id.toString(),
+            senderId: newGift.sender_ids.host,
+            senderName: newGift.sender_display_names.host,
+            senderIcon: senderIcon,
+            latitude: parseFloat(newGift.latitude) || 0,
+            longitude: parseFloat(newGift.longitude) || 0,
+            giftType: "collaborative",
+            dateSent: new Date(newGift.created_at).toLocaleDateString(),
+            address: newGift.address,
+            content: {
+              ...newGift.content,
+              senderDisplayNames: newGift.sender_display_names,
+            },
+            isCollaborative: true,
+            collaboratorIcons: collaboratorIcons,
+          };
 
-  return () => {
-    channel.unsubscribe();
-  };
-}, [currentUser?.id]);
+          setReceivedGifts((prev) => [...prev, receivedGift]);
+          setSelectedReceivedGift(receivedGift);
+          setShowGiftReceivedPopup(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUser?.id]);
 
   // Add this helper function to calculate distance
   const calculateDistance = (
@@ -1593,12 +1776,14 @@ useEffect(() => {
               friends={friends}
               region={mapRegion}
               onRegionChangeComplete={
-                isGiftDropActive ? undefined : setMapRegion
+                isGiftDropActive || isNavigating ? undefined : setMapRegion
               }
               selectedFriendId={selectedFriend?.id || null}
               onFriendPress={(friend) => {
-                handleSelectFriend(friend);
-                bottomSheetRef.current?.expand();
+                if (!isNavigating) {
+                  handleSelectFriend(friend);
+                  bottomSheetRef.current?.expand();
+                }
               }}
               onPoiClick={handlePoiClick}
               selectedGiftLocation={
@@ -1610,16 +1795,48 @@ useEffect(() => {
                   : null
               }
               placedGifts={placedGifts}
-              onGiftPress={handleSelectGift}
+              onGiftPress={(gift) => !isNavigating && handleSelectGift(gift)}
               receivedGifts={receivedGifts}
-              onReceivedGiftPress={handleReceivedGiftPress}
+              onReceivedGiftPress={(gift) =>
+                !isNavigating && handleReceivedGiftPress(gift)
+              }
               useInitials={useInitials}
               userIcon={currentUser?.profile_icon_url || undefined}
               userInitials={getUserInitials(currentUser?.display_name)}
               showUserInitials={useInitials || !currentUser?.profile_icon_url}
               isLocationSharingEnabled={locationSharingEnabled}
+              navigationRoute={navigationRoute}
+              isNavigating={isNavigating}
             />
+            {isNavigating && currentRouteData && (
+              <>
+                <NavigationHeader
+                  currentInstruction={
+                    currentRouteData.steps[currentStepIndex]?.instruction ||
+                    "Continue on route"
+                  }
+                  onClose={handleStopNavigation}
+                />
+                <NavigationFooter
+                  totalDuration={currentRouteData.totalDuration}
+                  totalDistance={currentRouteData.totalDistance}
+                  estimatedArrival={calculateETA(
+                    currentRouteData.durationInSeconds
+                  )}
+                  travelMode={travelMode}
+                  onToggleTravelMode={handleToggleTravelMode}
+                />
+              </>
+            )}
 
+            {overlayView === "list" && !isNavigating && (
+              <View style={styles.statusDropdownOverlay}>
+                <StatusDropdown
+                  selectedStatus={userStatus}
+                  onStatusChange={handleStatusChange}
+                />
+              </View>
+            )}
             <View style={styles.floatingButtonsContainer}>
               <View style={styles.floatingButton}>
                 <GiftDraftsButton
@@ -1636,7 +1853,6 @@ useEffect(() => {
                 />
               </View> */}
             </View>
-
             {/* Status Dropdown - overlays the map */}
             {overlayView === "list" && (
               <View style={styles.statusDropdownOverlay}>
@@ -1646,7 +1862,6 @@ useEffect(() => {
                 />
               </View>
             )}
-
             {/* Loading indicator for place details */}
             {loadingPlaceDetails && overlayView === "locationSelection" && (
               <View style={styles.loadingOverlay}>
@@ -1659,7 +1874,7 @@ useEffect(() => {
           </View>
 
           {/* Conditionally render overlays */}
-          {overlayView === "list" && (
+          {overlayView === "list" && !isNavigating && (
             <FriendListOverlay
               bottomSheetRef={bottomSheetRef}
               snapPoints={snapPoints}
@@ -1669,7 +1884,7 @@ useEffect(() => {
             />
           )}
 
-          {overlayView === "detail" && selectedFriend && (
+          {overlayView === "detail" && selectedFriend && !isNavigating && (
             <FriendDetailOverlay
               bottomSheetRef={bottomSheetRef}
               snapPoints={snapPoints}
@@ -1685,7 +1900,7 @@ useEffect(() => {
             />
           )}
 
-          {overlayView === "giftDetail" && selectedGift && (
+          {overlayView === "giftDetail" && selectedGift && !isNavigating && (
             <GiftDetailOverlay
               bottomSheetRef={bottomSheetRef}
               snapPoints={snapPoints}
@@ -1696,17 +1911,18 @@ useEffect(() => {
             />
           )}
 
-          {overlayView === "receivedGiftDetail" && selectedReceivedGift && (
+          {overlayView === "receivedGiftDetail" && selectedReceivedGift && !isNavigating && (
             <ReceivedGiftDetailOverlay
               bottomSheetRef={bottomSheetRef}
               snapPoints={snapPoints}
               handleSheetChanges={handleSheetChanges}
               gift={selectedReceivedGift}
               onBack={handleBackToList}
+              onNavigate={handleStartNavigation}
             />
           )}
 
-          {overlayView === "locationSelection" && selectedFriend && (
+          {overlayView === "locationSelection" && selectedFriend && !isNavigating &&  (
             <>
               <LocationSelectionOverlay
                 bottomSheetRef={bottomSheetRef}

@@ -9,6 +9,8 @@ import MapView, {
 } from "react-native-maps";
 import { Friend } from "../types";
 import { CustomMapPin, UserMapPin } from "./buttons/mapPin";
+import { Polyline } from "react-native-maps";
+import { theme } from "../assets/theme";
 
 interface MapProps {
   location: ExpoLocation.LocationObject;
@@ -24,6 +26,8 @@ interface MapProps {
     coordinate: { latitude: number; longitude: number };
   }) => void;
   selectedGiftLocation?: { latitude: number; longitude: number } | null;
+  navigationRoute?: Array<{ latitude: number; longitude: number }>;
+  isNavigating?: boolean;
   placedGifts?: Array<{
     id: string;
     friendId: string;
@@ -88,6 +92,8 @@ const Map: React.FC<MapProps> = ({
   userInitials,
   isLocationSharingEnabled = true,
   showUserInitials = false,
+  navigationRoute,
+  isNavigating = false,
 }) => {
   const mapRef = useRef<MapView>(null);
 
@@ -227,7 +233,7 @@ const Map: React.FC<MapProps> = ({
             <Marker
               key={friend.id}
               coordinate={coordinates}
-              onPress={() => onFriendPress(friend)}
+              onPress={() => !isNavigating && onFriendPress(friend)}
               anchor={{ x: 0.5, y: 1 }}
             >
               <CustomMapPin
@@ -278,7 +284,7 @@ const Map: React.FC<MapProps> = ({
           <Marker
             key={gift.id}
             coordinate={coordinates}
-            onPress={() => onGiftPress?.(gift)}
+            onPress={() => !isNavigating && onGiftPress?.(gift)}
             anchor={{ x: 0.5, y: 1 }}
             zIndex={10}
           >
@@ -343,7 +349,7 @@ const Map: React.FC<MapProps> = ({
           <Marker
             key={`received-${gift.id}`}
             coordinate={coordinates}
-            onPress={() => onReceivedGiftPress?.(gift)}
+            onPress={() => !isNavigating && onReceivedGiftPress?.(gift)}
             anchor={{ x: 0.5, y: 1 }}
             zIndex={10}
           >
@@ -418,6 +424,16 @@ const Map: React.FC<MapProps> = ({
             />
           </View>
         </Marker>
+      )}
+      {/* Navigation Route */}
+      {navigationRoute && navigationRoute.length > 0 && (
+        <Polyline
+          coordinates={navigationRoute}
+          strokeColor={theme.colors.waynOrange}
+          strokeWidth={4}
+          lineCap="round"
+          lineJoin="round"
+        />
       )}
     </MapView>
   );

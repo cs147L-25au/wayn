@@ -2,6 +2,7 @@ import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React from "react";
 import { StyleSheet, Text, View, Image } from "react-native";
 import { theme } from "../assets/theme";
+import PrimaryButtonM from "./buttons/primaryButtonMed"; // ADD THIS
 
 interface ReceivedGiftDetailOverlayProps {
   bottomSheetRef: React.RefObject<BottomSheet | null>;
@@ -27,6 +28,7 @@ interface ReceivedGiftDetailOverlayProps {
     };
   };
   onBack: () => void;
+  onNavigate: () => void; // ADD THIS
 }
 
 const ReceivedGiftDetailOverlay: React.FC<ReceivedGiftDetailOverlayProps> = ({
@@ -35,6 +37,7 @@ const ReceivedGiftDetailOverlay: React.FC<ReceivedGiftDetailOverlayProps> = ({
   handleSheetChanges,
   gift,
   onBack,
+  onNavigate, // ADD THIS
 }) => {
   // Select appropriate gift icon
   const giftIconSource = gift.isCollaborative
@@ -109,6 +112,9 @@ const ReceivedGiftDetailOverlay: React.FC<ReceivedGiftDetailOverlayProps> = ({
           <Text style={[theme.text.body3, styles.subtitleText]}>
             Go to this location to unlock your gift.
           </Text>
+
+          {/* Navigate Button */}
+          <PrimaryButtonM title="Navigate" onPress={onNavigate} />
         </View>
       </BottomSheetView>
     </BottomSheet>
