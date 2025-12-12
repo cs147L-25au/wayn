@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { GoogleGenAI } from "@google/genai";
 import {
   AudioModule,
   RecordingPresets,
@@ -11,8 +12,9 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  StatusBar,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,6 +28,10 @@ import { useAuth } from "../../../contexts/authContext";
 import { db } from "../../../utils/supabase";
 
 type RecordingState = "idle" | "recording" | "paused" | "stopped";
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
+});
 
 const AudioRecordingScreen = () => {
   const { currentUser } = useAuth();
@@ -51,6 +57,12 @@ const AudioRecordingScreen = () => {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [playbackTime, setPlaybackTime] = useState<number>(0);
+  const [prompts, setPrompts] = useState("Hi, how have you been?");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Transcription states
+  const [transcript, setTranscript] = useState<string>("");
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
 
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
@@ -73,6 +85,78 @@ const AudioRecordingScreen = () => {
       });
     })();
   }, []);
+
+  // dynamically generate starter prompts based on location
+  useEffect(() => {
+    const generatePrompts = async () => {
+      try {
+        setIsLoading(true);
+
+        const result = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `You are an expert at generating relevant and realistic audio recording starter prompts. The sender is ${currentUser?.display_name} and the receiver is ${friendName}. The sender is sending the receiver an audio recording, and receiver will receive the recording when they arrive at the location ${locationName}, ${locationAddress}. Knowing this, generate some lighthearted and unique suggested starters for the sender. Keep the prompts short. Suggest at most 3 prompts. ONLY output the prompts and nothing else. Format the prompts as sentences without any styling, bullet points, or markets. Add line breaks between each prompts. `,
+                },
+              ],
+            },
+          ],
+        });
+
+        const prompts = result.text;
+        setPrompts(prompts);
+      } catch (error) {
+        console.error("Could not load suggestions.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    generatePrompts();
+  }, []);
+
+  const transcribeAudio = async (audioUri: string) => {
+    try {
+      setIsTranscribing(true);
+
+      const response = await fetch(audioUri);
+      const blob = await response.blob();
+
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve((reader.result as string).split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "You are an expert at accurately transcribing audio recordings. Transcribe this audio recording. Only include spoken words.",
+              },
+              { inlineData: { data: base64Audio, mimeType: "audio/m4a" } },
+            ],
+          },
+        ],
+      });
+
+      const text = result.text;
+      setTranscript(text);
+    } catch (err) {
+      console.error("Transcription error:", err);
+      Alert.alert("Transcription Error", "Failed to transcribe audio.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   const handleBack = () => {
     if (recordingState !== "idle") {
@@ -121,6 +205,7 @@ const AudioRecordingScreen = () => {
   const handleStartRecording = async () => {
     try {
       setRecordingState("recording");
+      setTranscript("");
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
     } catch (error) {
@@ -155,6 +240,9 @@ const AudioRecordingScreen = () => {
       if (recorderState.url) {
         player.replace({ uri: recorderState.url });
         setRecordingUri(recorderState.url);
+
+        // Transcribe the audio
+        await transcribeAudio(recorderState.url);
       }
     } catch (error) {
       console.error("Failed to stop recording:", error);
@@ -194,6 +282,7 @@ const AudioRecordingScreen = () => {
       setRecordingTime(0);
       setPlaybackTime(0);
       setRecordingUri(null);
+      setTranscript("");
     } catch (error) {
       console.error("Failed to restart:", error);
     }
@@ -289,7 +378,7 @@ const AudioRecordingScreen = () => {
       const signedUrl = urlData.signedUrl;
       console.log("🔗 Signed URL created:", signedUrl);
 
-      // Insert gift record into Supabase with the SIGNED URL
+      // Insert gift record into Supabase with the SIGNED URL and transcript
       const giftData: any = {
         sender_display_name: currentUser?.display_name,
         receiver_display_name: friendName,
@@ -302,6 +391,7 @@ const AudioRecordingScreen = () => {
         content: {
           audioUri: signedUrl,
           storagePath: filename,
+          transcript: transcript, // Include transcript
         },
       };
 
@@ -413,7 +503,7 @@ const AudioRecordingScreen = () => {
       const signedUrl = urlData.signedUrl;
       console.log("🔗 Signed URL created:", signedUrl);
 
-      // Insert gift into gift basket table in supabase with the SIGNED URL
+      // Insert gift into gift basket table in supabase with the SIGNED URL and transcript
       const giftItemData: any = {
         sender_display_name: currentUser?.display_name,
         receiver_display_name: friendName,
@@ -422,8 +512,9 @@ const AudioRecordingScreen = () => {
         address: locationAddress,
         gift_type: "audioRecording",
         content: {
-          audioUri: signedUrl, // CHANGED: Use audioUri instead of audioRecording
+          audioUri: signedUrl,
           storagePath: filename,
+          transcript: transcript, // Include transcript
         },
         session_id: sessionId,
       };
@@ -491,6 +582,7 @@ const AudioRecordingScreen = () => {
       gift_type: "audioRecording",
       content: {
         audioRecording: recordingUri,
+        transcript: transcript, // Include transcript
       },
     };
     try {
@@ -527,30 +619,74 @@ const AudioRecordingScreen = () => {
         onClose={handleClose}
       />
 
-      <StatusBar barStyle="dark-content" />
-
       <View style={styles.container}>
         {/* Content */}
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: 200, flexGrow: 1 }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Suggested Starters Card*/}
-
           <View style={styles.suggestionsCard}>
             <View style={styles.suggestionsHeader}>
               <Text style={styles.bulbIcon}>💡</Text>
               <Text style={styles.suggestionsTitle}>Suggested starters</Text>
             </View>
             <View style={styles.suggestionsList}>
-              <Text style={styles.suggestionText}>
-                "Sending you some extra energy for your study session"
-              </Text>
-              <Text style={styles.suggestionText}>
-                "You've been working all day, how are you?"
-              </Text>
-              <Text style={styles.suggestionText}>
-                "Don't forget to take breaks!"
-              </Text>
+              <View style={styles.suggestionsList}>
+                {isLoading ? (
+                  <View style={{ alignItems: "center", paddingVertical: 12 }}>
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.waynOrange}
+                    />
+                    <Text
+                      style={[
+                        styles.suggestionText,
+                        { marginTop: 8, opacity: 0.6 },
+                      ]}
+                    >
+                      Generating suggestions...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.suggestionText}>{prompts}</Text>
+                )}
+              </View>
             </View>
           </View>
+
+          {/* Transcript Display - Only show when stopped */}
+          {recordingState === "stopped" && (
+            <View style={styles.transcriptionCard}>
+              <View style={styles.transcriptionHeader}>
+                <Text style={styles.transcriptionTitle}>Transcript:</Text>
+                {isTranscribing && (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.waynOrange}
+                  />
+                )}
+              </View>
+              <ScrollView
+                style={styles.transcriptionScroll}
+                showsVerticalScrollIndicator={true}
+              >
+                {isTranscribing ? (
+                  <Text style={styles.transcriptionPlaceholder}>
+                    Transcribing your recording...
+                  </Text>
+                ) : transcript ? (
+                  <Text style={styles.transcriptionText}>{transcript}</Text>
+                ) : (
+                  <Text style={styles.transcriptionPlaceholder}>
+                    No transcript available
+                  </Text>
+                )}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Recording Section */}
           <View style={styles.recordingSection}>
@@ -670,7 +806,7 @@ const AudioRecordingScreen = () => {
               </View>
             )}
           </View>
-        </View>
+        </ScrollView>
 
         {/* Bottom Buttons */}
         {!collaboratorIds && (
@@ -749,6 +885,39 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     ...theme.text.body2,
+  },
+  transcriptionCard: {
+    backgroundColor: "#F8F9FA",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    maxHeight: 150,
+  },
+  transcriptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  transcriptionTitle: {
+    ...theme.text.body2Bold,
+    color: theme.colors.textPrimary,
+  },
+  transcriptionScroll: {
+    maxHeight: 100,
+  },
+  transcriptionText: {
+    ...theme.text.body2,
+    lineHeight: 20,
+    color: theme.colors.textPrimary,
+  },
+  transcriptionPlaceholder: {
+    ...theme.text.body2,
+    lineHeight: 20,
+    color: theme.colors.textSecondary,
+    fontStyle: "italic",
   },
   recordingSection: {
     alignItems: "center",
