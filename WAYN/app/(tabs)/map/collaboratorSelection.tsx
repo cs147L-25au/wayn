@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -41,21 +41,18 @@ export default function AddCollaboratorsScreen() {
   const [allFriends, setAllFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [parsedIds, setParsedIds] = useState([]);
+  const [collabIds, setCollabIds] = useState(params.collaboratorIds);
   const [host, setHost] = useState(null);
   const [isCollaborator, setIsCollaborator] = useState(false);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (collaboratorIds) {
-        try {
-          setParsedIds(JSON.parse(collaboratorIds));
-        } catch (e) {}
-      }
-      if (hostName) {
-        setHost(hostName);
-      }
-    }, [collaboratorIds, hostName])
-  );
+  useEffect(() => {
+    // if (collaboratorIds) {
+    //   setParsedIds(JSON.parse(collaboratorIds));
+    // }
+    if (hostName) {
+      setHost(hostName);
+    }
+  }, []);
 
   const getInitialIds = () => {
     if (params.collaboratorIds && typeof params.collaboratorIds === "string") {
@@ -72,7 +69,7 @@ export default function AddCollaboratorsScreen() {
     useState<string[]>(getInitialIds);
 
   // loads list of collaborators
-  useFocusEffect(
+  useEffect(
     React.useCallback(() => {
       const loadCollaborators = async () => {
         if (!currentUser) return;
@@ -90,10 +87,7 @@ export default function AddCollaboratorsScreen() {
       };
 
       loadCollaborators();
-
-      // optional cleanup if needed
-      return () => {};
-    }, [hostName])
+    }, [])
   );
 
   // const filteredCollaborators = useMemo(() => {
@@ -108,14 +102,68 @@ export default function AddCollaboratorsScreen() {
   //       return fullName.includes(searchText.toLowerCase());
   //     });
   // }, [allFriends, params.friendId, searchText, params.hostName, parsedIds]);
-  const filteredCollaborators = useMemo(() => {
-    const isCollaborator = parsedIds.includes(currentUser?.id);
-    setIsCollaborator(isCollaborator);
-    // console.log("isCollaborator", isCollaborator);
-    // console.log("hostId:", hostId);
-    // console.log("currentUserId", currentUser?.id);
 
-    const hostId = params.hostId; // If you already know the hostId elsewhere, adjust this accordingly
+  // Add this useEffect to sync addedCollaboratorIds with parsedIds
+  useEffect(() => {
+    setAddedCollaboratorIds(parsedIds);
+  }, [parsedIds]);
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      if (!sessionId) return;
+
+      const { data, error } = await db
+        .from("collab_gift_sessions")
+        .select("*")
+        .eq("session_id", sessionId)
+        .single();
+
+      if (!error && data) {
+        const ids =
+          typeof data.collaborator_ids === "string"
+            ? JSON.parse(data.collaborator_ids)
+            : data.collaborator_ids || [];
+
+        setParsedIds(ids);
+        console.log("parsed ids:", ids);
+      }
+    };
+    fetchSession();
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const channel = db
+      .channel("session-collab-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "collab_gift_sessions",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const updated = payload.new.collaborator_ids || [];
+          setParsedIds(
+            typeof updated === "string" ? JSON.parse(updated) : updated
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      db.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIsCollaborator(parsedIds.includes(currentUser?.id));
+  }, [parsedIds, currentUser?.id]);
+
+  const filteredCollaborators = useMemo(() => {
+    const hostId = params.hostId;
 
     return allFriends
       .filter((friend) => {
@@ -124,11 +172,12 @@ export default function AddCollaboratorsScreen() {
 
         // 2. If user is a collaborator
         if (isCollaborator) {
-          // Show ONLY:
-          // - host
-          // - collaborators
-          // - the user themself
-          return friend.id === hostId || parsedIds.includes(friend.id);
+          // Show the host
+          if (friend.id === params.hostId) return true;
+          // Show other collaborators
+          if (parsedIds.includes(friend.id)) return true;
+          // Don't show anyone else
+          return false;
         }
 
         // 3. Host sees all friends
@@ -139,7 +188,15 @@ export default function AddCollaboratorsScreen() {
         const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase();
         return fullName.includes(searchText.toLowerCase());
       });
-  }, [allFriends, params.friendId, searchText, currentUser?.id]);
+  }, [
+    allFriends,
+    params.friendId,
+    searchText,
+    currentUser?.id,
+    parsedIds,
+    params.hostId,
+    isCollaborator,
+  ]);
 
   const handleToggleCollaborator = (id: string) => {
     setAddedCollaboratorIds((prev) =>
@@ -171,6 +228,21 @@ export default function AddCollaboratorsScreen() {
 
   const handleDone = async () => {
     console.log("Done pressed");
+
+    // Update collaborator lists in supabase
+    const sessionData = {
+      session_id: sessionId,
+      collaborator_ids: addedCollaboratorIds,
+      host_id: currentUser?.id,
+      receiver_id: friendId,
+    };
+    const { error } = await db
+      .from("collab_gift_sessions")
+      .upsert(sessionData, { onConflict: "session_id" });
+
+    if (error) {
+      console.error("Failed to update session collaborators:", error);
+    }
 
     // Send a notification to each added collaborator
     if (currentUser && params.sessionId && addedCollaboratorIds.length > 0) {
@@ -238,21 +310,23 @@ export default function AddCollaboratorsScreen() {
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Feather
-          name="search"
-          size={20}
-          color="#FF6B52"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search text..."
-          placeholderTextColor="#999"
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-      </View>
+      {!isCollaborator && (
+        <View style={styles.searchContainer}>
+          <Feather
+            name="search"
+            size={20}
+            color="#FF6B52"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search text..."
+            placeholderTextColor="#999"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
+      )}
 
       {/* Collaborators List */}
       <ScrollView

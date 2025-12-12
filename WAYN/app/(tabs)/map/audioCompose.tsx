@@ -1,28 +1,27 @@
-import React, { useState, useEffect, useRef } from "react";
-import * as FileSystem from "expo-file-system";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
-import { theme } from "../../../assets/theme";
-import OverlayHeader from "../../../components/navigation/overlayHeader";
-import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
 import { Feather } from "@expo/vector-icons";
 import {
-  useAudioPlayer,
-  useAudioRecorder,
   AudioModule,
   RecordingPresets,
   setAudioModeAsync,
-  useAudioRecorderState,
+  useAudioPlayer,
   useAudioPlayerStatus,
+  useAudioRecorder,
+  useAudioRecorderState,
 } from "expo-audio";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { theme } from "../../../assets/theme";
+import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
+import OverlayHeader from "../../../components/navigation/overlayHeader";
 import { useAuth } from "../../../contexts/authContext";
 import { db } from "../../../utils/supabase";
 
@@ -45,6 +44,7 @@ const AudioRecordingScreen = () => {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
@@ -465,6 +465,7 @@ const AudioRecordingScreen = () => {
           sessionId,
           giftCount: Number(giftCount) + 1,
           collaboratorIds,
+          hostId,
         },
       });
     } catch (err) {

@@ -1,13 +1,13 @@
+import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
 import { theme } from "../../../assets/theme";
-import OverlayHeader from "../../../components/navigation/overlayHeader";
 import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
-import { db } from "../../../utils/supabase";
-import { useAuth } from "../../../contexts/authContext";
 import GiftCardRenderer from "../../../components/giftCardRenderer";
+import OverlayHeader from "../../../components/navigation/overlayHeader";
+import { useAuth } from "../../../contexts/authContext";
+import { db } from "../../../utils/supabase";
 
 // Gift card designs mapping (same as in giftCardCustomization)
 const giftCardDesigns: Record<string, any> = {
@@ -39,6 +39,7 @@ export default function PaymentConfirmationScreen() {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const formattedAmount =
@@ -150,6 +151,7 @@ export default function PaymentConfirmationScreen() {
           sessionId,
           giftCount: Number(giftCount) + 1,
           collaboratorIds,
+          hostId,
         },
       });
     } catch (err) {

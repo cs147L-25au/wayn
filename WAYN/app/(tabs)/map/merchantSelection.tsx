@@ -1,14 +1,14 @@
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
 import { theme } from "../../../assets/theme";
-import { db } from "../../../utils/supabase";
-import OverlayHeader from "../../../components/navigation/overlayHeader";
-import MerchantItem from "../../../components/merchantItem";
 import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
+import MerchantItem from "../../../components/merchantItem";
+import OverlayHeader from "../../../components/navigation/overlayHeader";
 import SearchBar from "../../../components/searchBar";
 import { useAuth } from "../../../contexts/authContext";
+import { db } from "../../../utils/supabase";
 
 interface Merchant {
   id: string;
@@ -38,6 +38,7 @@ export default function MerchantSelectionScreen() {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(
@@ -150,6 +151,7 @@ export default function MerchantSelectionScreen() {
           sessionId,
           collaboratorIds,
           giftCount,
+          hostId,
         },
       });
     }

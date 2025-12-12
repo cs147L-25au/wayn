@@ -1,23 +1,22 @@
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
   Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
 import { theme } from "../../../assets/theme";
-import OverlayHeader from "../../../components/navigation/overlayHeader";
 import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
 import SelectableAmountButton from "../../../components/buttons/selectableButton";
 import DesignThumbnail from "../../../components/designThumbnail";
 import NumberInputField from "../../../components/fields/numInputField";
-import { db } from "../../../utils/supabase";
+import OverlayHeader from "../../../components/navigation/overlayHeader";
 import { useAuth } from "../../../contexts/authContext";
+import { db } from "../../../utils/supabase";
 
 import GiftCardRenderer from "@/components/giftCardRenderer";
 
@@ -46,6 +45,7 @@ export default function GiftCardCustomizationScreen() {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const [selectedDesignId, setSelectedDesignId] = useState<string>("design1");
@@ -114,6 +114,7 @@ export default function GiftCardCustomizationScreen() {
           sessionId,
           collaboratorIds,
           giftCount,
+          hostId,
         },
       });
     }

@@ -19,10 +19,10 @@ import { theme } from "../../../assets/theme";
 import DualBottomCTA from "../../../components/buttons/dualBottomCTA";
 import OverlayHeader from "../../../components/navigation/overlayHeader";
 import { useAuth } from "../../../contexts/authContext";
+import type { DrawBlock, LetterBlock } from "../../../types/types";
 import { db } from "../../../utils/supabase";
 import DrawOverlay from "./drawOverlay";
 import StickerOverlay from "./stickerOverlay";
-import type { DrawBlock, LetterBlock } from "../../../types/types";
 
 /* ----------------------------------------------------- */
 /* MAIN COMPONENT                                         */
@@ -42,6 +42,7 @@ export default function LetterComposeScreen() {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const [letterBlocks, setLetterBlocks] = useState<LetterBlock[]>([]);
@@ -248,6 +249,7 @@ export default function LetterComposeScreen() {
           sessionId,
           giftCount: count,
           collaboratorIds,
+          hostId,
         },
       });
     } catch (err) {

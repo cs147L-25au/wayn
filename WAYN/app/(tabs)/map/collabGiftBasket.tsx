@@ -69,6 +69,24 @@ export default function ConfirmGiftScreen() {
   } = params;
 
   useEffect(() => {
+    if (!params.collaboratorIds) return;
+    const parsed = JSON.parse(params.collaboratorIds);
+    setParsedIds(parsed);
+  }, [params.collaboratorIds]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    if (!parsedIds.length) return;
+
+    const isCollab = parsedIds.includes(currentUser.id);
+    setIsCollaborator(isCollab);
+
+    console.log("parsedIds:", parsedIds);
+    console.log("currentUser.id:", currentUser.id);
+    console.log("isCollaborator:", isCollab);
+  }, [parsedIds, currentUser?.id]);
+
+  useEffect(() => {
     const loadGifts = async () => {
       if (!currentUser) return;
 
@@ -259,6 +277,17 @@ export default function ConfirmGiftScreen() {
 
   const handleView = (id: string) => {
     console.log("View gift:", id);
+  };
+
+  const handleDoneAdding = () => {
+    console.log("Done adding pressed");
+    router.navigate({
+      pathname: "/(tabs)/map",
+      params: {
+        ...params,
+        giftCount: gifts.length.toString(),
+      },
+    });
   };
 
   const handleSendGift = async () => {
@@ -480,12 +509,12 @@ export default function ConfirmGiftScreen() {
                 >
                   <Text style={styles.buttonText}>Remove</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={styles.button}
                   onPress={() => handleView(gift.id.toString())}
                 >
                   <Text style={styles.buttonText}>Modify</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
             </View>
           ))}
@@ -493,15 +522,29 @@ export default function ConfirmGiftScreen() {
       )}
 
       {/* Bottom Buttons */}
-      <View style={styles.bottomContainer}>
-        <DualBottomCTA
-          primaryText="Send Gift"
-          secondaryText="Save & Exit"
-          onPrimaryPress={handleSendGift}
-          onSecondaryPress={handleSaveAndExit}
-          primaryDisabled={gifts.length === 0}
-        />
-      </View>
+      {!isCollaborator && (
+        <View style={styles.bottomContainer}>
+          <DualBottomCTA
+            primaryText="Send Gift"
+            secondaryText="Save & Exit"
+            onPrimaryPress={handleSendGift}
+            onSecondaryPress={handleSaveAndExit}
+            primaryDisabled={gifts.length === 0}
+          />
+        </View>
+      )}
+
+      {isCollaborator && (
+        <View style={styles.bottomContainer}>
+          <DualBottomCTA
+            primaryText="Done Adding"
+            secondaryText="Save & Exit"
+            onPrimaryPress={handleDoneAdding}
+            onSecondaryPress={handleSaveAndExit}
+            primaryDisabled={gifts.length === 0}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -585,7 +628,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: "row",
-    justifyContent: "space-evenly",
+    justifyContent: "center",
     alignItems: "center",
   },
   bottomContainer: {

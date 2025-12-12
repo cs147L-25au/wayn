@@ -119,6 +119,7 @@ export default function PlaylistComposeScreen() {
     sessionId,
     collaboratorIds,
     giftCount,
+    hostId,
   } = params;
 
   const [playlistName, setPlaylistName] = useState("Playlist Name");
@@ -351,6 +352,7 @@ export default function PlaylistComposeScreen() {
           sessionId,
           giftCount: Number(giftCount) + 1,
           collaboratorIds,
+          hostId,
         },
       });
     } catch (err) {

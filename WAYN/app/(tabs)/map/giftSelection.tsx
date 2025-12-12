@@ -115,6 +115,7 @@ export default function GiftSelectionScreen() {
         collaboratorIds: collaboratorIds || "",
         sessionId: sessionId || "",
         giftCount: currentGiftCount,
+        hostId: hostId,
       },
     });
   };
@@ -136,6 +137,7 @@ export default function GiftSelectionScreen() {
         collaboratorIds,
         sessionId,
         giftCount: currentGiftCount,
+        hostId: hostId,
       },
     });
     // router.push({
@@ -164,6 +166,7 @@ export default function GiftSelectionScreen() {
         collaboratorIds,
         sessionId,
         giftCount: currentGiftCount,
+        hostId: hostId,
       },
     });
   };
@@ -184,6 +187,7 @@ export default function GiftSelectionScreen() {
         collaboratorIds,
         sessionId,
         giftCount: currentGiftCount,
+        hostId: hostId,
       },
     });
   };
