@@ -99,7 +99,7 @@ const AudioRecordingScreen = () => {
               role: "user",
               parts: [
                 {
-                  text: `You are an expert at generating relevant and realistic audio recording starter prompts. The sender is ${currentUser?.display_name} and the receiver is ${friendName}. The sender is sending the receiver an audio recording, and receiver will receive the recording when they arrive at the location ${locationName}, ${locationAddress}. The sender is not currently at the location. Knowing this, generate some lighthearted and unique suggested starters for the sender. Keep the prompts short. Suggest at most 3 prompts. ONLY output the prompts and nothing else. DO NOT INCLUDE ANYTHING ELSE. Format the prompts as sentences without any styling, bullet points, or markets. Add line breaks between each prompts. `,
+                  text: `You are an expert at generating relevant and realistic audio recording starter prompts. The sender is ${currentUser?.display_name} and the receiver is ${friendName}. The sender is sending the receiver an audio recording, and the receiver will receive the recording when they arrive at the location ${locationName}, ${locationAddress}. Knowing this, generate some lighthearted and natural-sounding suggested starters for the sender. Keep the prompts short. Suggest at most 3 prompts. ONLY output the prompts and nothing else. DO NOT INCLUDE ANYTHING ELSE. Format the prompts as sentences without any styling, bullet points, or markers. Add line breaks between each prompts. `,
                 },
               ],
             },
