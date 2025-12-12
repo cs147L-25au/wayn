@@ -820,6 +820,13 @@ export default function App() {
         isCollaborative: isCollab, // ADD THIS
       };
       setPlacedGifts((prev) => [...prev, newGift]);
+      setTimeout(() => {
+      setMapRegion(prev => prev ? {
+        ...prev,
+        latitude: prev.latitude + 0.00001, // Tiny change
+        longitude: prev.longitude + 0.00001,
+      } : undefined);
+    }, 100);
     }
 
     // Clear the params
@@ -1051,7 +1058,7 @@ export default function App() {
           .from("sent_gifts_collab")
           .select("*")
           .eq("receiver_id", currentUser.id)
-          .eq("status", "pending")
+          .or("status.is.null,status.eq.pending")
           .order("created_at", { ascending: false });
 
         if (collabError) {
@@ -1136,7 +1143,6 @@ export default function App() {
   }, [currentUser?.id]);
 
   // Load existing placed gifts on mount
-  // In your loadPlacedGifts useEffect (around line 680 in document 4)
   useEffect(() => {
     const loadPlacedGifts = async () => {
       if (!currentUser) return;
@@ -1155,32 +1161,72 @@ export default function App() {
           return;
         }
 
-        // Load collaborative gifts - FIX THIS PART
+        // Load collaborative gifts
         const { data: collabGifts, error: collabError } = await db
           .from("sent_gifts_collab")
           .select("*")
-          .eq("status", "pending")
+          .or("status.is.null,status.eq.pending")
           .order("created_at", { ascending: false });
 
-        if (collabError) {
-          console.error("Error fetching collab gifts:", collabError);
-        }
-
-        // Filter collaborative gifts in JavaScript instead of SQL
+        // Filter collaborative gifts where current user is the host
         const userCollabGifts = (collabGifts || []).filter(
           (gift) => gift.sender_ids?.host === currentUser.id
         );
 
-        const allGifts = [...(individualGifts || []), ...userCollabGifts];
+        // Process all gifts
+        const processedGifts: PlacedGift[] = [];
 
-        // ... rest of your code
+        // Process individual gifts
+        for (const gift of individualGifts || []) {
+          const friend = friends.find((f) => f.id === gift.receiver_id);
+          
+          processedGifts.push({
+            id: gift.id.toString(),
+            friendId: gift.receiver_id,
+            friendName: gift.receiver_display_name || (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
+            friendIcon: friend?.icon || require("../../../assets/userIcons/jillicon.png"),
+            latitude: parseFloat(gift.latitude) || 0,
+            longitude: parseFloat(gift.longitude) || 0,
+            giftType: gift.gift_type,
+            merchantName: gift.content?.merchantName || "Merchant",
+            designId: gift.content?.designId || "design1",
+            amount: gift.content?.amount || "0",
+            dateSent: new Date(gift.created_at).toLocaleDateString(),
+            address: gift.address,
+            isCollaborative: false,
+          });
+        }
+
+        // Process collaborative gifts
+        for (const gift of userCollabGifts) {
+          const friend = friends.find((f) => f.id === gift.receiver_id);
+          
+          processedGifts.push({
+            id: gift.id.toString(),
+            friendId: gift.receiver_id,
+            friendName: gift.receiver_display_name || (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
+            friendIcon: friend?.icon || require("../../../assets/userIcons/jillicon.png"),
+            latitude: parseFloat(gift.latitude) || 0,
+            longitude: parseFloat(gift.longitude) || 0,
+            giftType: "collaborative",
+            merchantName: "Multiple Gifts",
+            designId: "collab",
+            amount: gift.content?.gifts?.length?.toString() || "0",
+            dateSent: new Date(gift.created_at).toLocaleDateString(),
+            address: gift.address,
+            isCollaborative: true,
+          });
+        }
+
+        setPlacedGifts(processedGifts);
+        console.log("Loaded placed gifts:", processedGifts.length, "(including", userCollabGifts.length, "collaborative)");
       } catch (err) {
         console.error("Unexpected error loading placed gifts:", err);
       }
     };
 
     loadPlacedGifts();
-  }, [currentUser?.id]);
+  }, [currentUser?.id, friends.length]);
 
   const handleUnsendGift = async (giftId: string) => {
     console.log("Unsending gift:", giftId);
