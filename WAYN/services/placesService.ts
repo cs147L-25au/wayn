@@ -1,4 +1,5 @@
-const GOOGLE_PLACES_API_KEY = "AIzaSyC6e7gLqYaWvwClHLYc_KoUJz3M92hCj_M";
+import getEnv from "../utils/env";
+const GOOGLE_PLACES_API_KEY = getEnv().GOOGLE_MAPS_API_KEY;
 const PLACES_API_BASE = "https://maps.googleapis.com/maps/api/place";
 
 export interface PlaceMerchant {
@@ -48,98 +49,6 @@ const getCategoryFromTypes = (types: string[]): string => {
 };
 
 export class PlacesService {
-  /**
-   * Get nearby merchants using Nearby Search
-   */
-  //   static async getNearbyMerchants(
-  //     latitude: number,
-  //     longitude: number,
-  //     radius: number = 1000,
-  //     types: string[] = ["cafe", "restaurant", "store", "shopping_mall"]
-  //   ): Promise<{
-  //     success: boolean;
-  //     merchants?: PlaceMerchant[];
-  //     error?: string;
-  //   }> {
-  //     try {
-  //       if (!GOOGLE_PLACES_API_KEY) {
-  //         console.error("Missing Google Places API key");
-  //         return { success: false, error: "Missing Google Places API key" };
-  //       }
-
-  //       console.log("Fetching merchants near:", { latitude, longitude, radius });
-  //       console.log(
-  //         "Using API key:",
-  //         GOOGLE_PLACES_API_KEY.substring(0, 10) + "..."
-  //       );
-
-  //       const typesParam = types.join("|"); // join all the types
-  //       const url = `${PLACES_API_BASE}/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=${typesParam}&key=${GOOGLE_PLACES_API_KEY}`;
-
-  //       console.log(
-  //         "Request URL:",
-  //         url.replace(GOOGLE_PLACES_API_KEY, "API_KEY_HIDDEN")
-  //       );
-
-  //       const response = await fetch(url, {
-  //         method: "GET",
-  //         headers: {
-  //           Accept: "application/json",
-  //         },
-  //       });
-
-  //       const data = await response.json();
-  //       console.log("Places API response status:", data.status);
-
-  //       if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-  //         console.error("Places API error:", data.status, data.error_message);
-  //         return {
-  //           success: false,
-  //           error: `${data.status}: ${data.error_message || "Unknown error"}`,
-  //         };
-  //       }
-
-  //       if (data.status === "ZERO_RESULTS") {
-  //         return { success: true, merchants: [] };
-  //       }
-
-  //       const merchants: PlaceMerchant[] = data.results
-  //         .filter((place: any) => {
-  //           const category = getCategoryFromTypes(place.types || []);
-  //           return (
-  //             category !== "other" && place.business_status === "OPERATIONAL"
-  //           );
-  //         })
-  //         .map((place: any) => ({
-  //           id: place.place_id,
-  //           name: place.name,
-  //           address: place.vicinity,
-  //           latitude: place.geometry.location.lat,
-  //           longitude: place.geometry.location.lng,
-  //           category: getCategoryFromTypes(place.types || []),
-  //           rating: place.rating,
-  //           userRatingsTotal: place.user_ratings_total,
-  //           photoReference: place.photos?.[0]?.photo_reference,
-  //         }));
-  //       // .sort((a: PlaceMerchant, b: PlaceMerchant) => {
-  //       //   const scoreA =
-  //       //     (a.rating || 0) * Math.log10((a.userRatingsTotal || 0) + 1);
-  //       //   const scoreB =
-  //       //     (b.rating || 0) * Math.log10((b.userRatingsTotal || 0) + 1);
-  //       //   return scoreB - scoreA;
-  //       // });
-
-  //       console.log(`Found ${merchants.length} merchants`);
-  //       return { success: true, merchants };
-  //     } catch (error: any) {
-  //       console.error("Error fetching nearby merchants:", error.message);
-  //       return {
-  //         success: false,
-  //         error: error.message || "Failed to fetch nearby merchants",
-  //       };
-  //     }
-  //   }
-
   static async getNearbyMerchants(
     latitude: number,
     longitude: number,
