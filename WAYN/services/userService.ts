@@ -20,7 +20,7 @@ export class UserService {
         .order("display_name");
 
       if (friendsError) {
-        console.error("Error fetching friends:", friendsError);
+        console.log("Error fetching friends:", friendsError);
         return { success: false, error: friendsError.message };
       }
 

@@ -107,7 +107,7 @@ const AudioRecordingScreen = () => {
         });
 
         const prompts = result.text;
-        setPrompts(prompts);
+        setPrompts(prompts ?? "");
       } catch (error) {
         console.error("Could not load suggestions.");
       } finally {
@@ -149,7 +149,7 @@ const AudioRecordingScreen = () => {
       });
 
       const text = result.text;
-      setTranscript(text);
+      setTranscript(text ?? "");
     } catch (err) {
       console.error("Transcription error:", err);
       Alert.alert("Transcription Error", "Failed to transcribe audio.");
@@ -430,7 +430,6 @@ const AudioRecordingScreen = () => {
       });
     } catch (err) {
       console.error("Unexpected error:", err);
-      Alert.alert("Error", `Failed to send gift: ${err.message || err}`);
     }
   };
 

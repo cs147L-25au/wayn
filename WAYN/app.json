@@ -49,7 +49,10 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "plugins": [
       "expo-router",
       [
@@ -78,7 +81,9 @@
           "locationAlwaysAndWhenInUsePermission": "Allow wayn to use your location.",
           "locationWhenInUsePermission": "Allow wayn to use your location while you are using the app."
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

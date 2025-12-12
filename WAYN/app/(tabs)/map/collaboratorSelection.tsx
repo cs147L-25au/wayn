@@ -81,7 +81,7 @@ export default function AddCollaboratorsScreen() {
         if (result.success && result.friends) {
           setAllFriends(result.friends);
         } else {
-          console.error("Failed to load friends:", result.error);
+          console.log("Failed to load friends:", result.error);
         }
 
         setLoading(false);

@@ -38,7 +38,7 @@ export default function TabsLayout() {
         name="map"
         options={{
           title: "Map",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size: number; color: string }) => (
             <Feather size={size} name="map" color={color} />
           ),
         }}
@@ -48,7 +48,7 @@ export default function TabsLayout() {
         name="gifts"
         options={{
           title: "Gifts",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size: number; color: string }) => (
             <Feather size={size} name="gift" color={color} />
           ),
         }}
@@ -58,7 +58,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size: number; color: string }) => (
             <Feather size={size} name="user" color={color} />
           ),
         }}

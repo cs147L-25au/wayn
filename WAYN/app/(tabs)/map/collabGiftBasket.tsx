@@ -49,7 +49,7 @@ export default function ConfirmGiftScreen() {
   const { currentUser } = useAuth();
   const [gifts, setGifts] = useState<GiftCollab[]>([]);
   const [isCollaborator, setIsCollaborator] = useState(false);
-  const [parsedIds, setParsedIds] = useState([]);
+  const [parsedIds, setParsedIds] = useState<String[]>([]);
 
   const params = useLocalSearchParams();
   const {
@@ -70,15 +70,26 @@ export default function ConfirmGiftScreen() {
 
   useEffect(() => {
     if (!params.collaboratorIds) return;
-    const parsed = JSON.parse(params.collaboratorIds);
-    setParsedIds(parsed);
+
+    // Normalize to a single string
+    const collaboratorIdsStr = Array.isArray(params.collaboratorIds)
+      ? params.collaboratorIds[0]
+      : params.collaboratorIds;
+
+    try {
+      const parsed = JSON.parse(collaboratorIdsStr);
+      setParsedIds(parsed);
+    } catch (err) {
+      console.error("Failed to parse collaboratorIds:", err);
+    }
   }, [params.collaboratorIds]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
     if (!parsedIds.length) return;
 
-    const isCollab = parsedIds.includes(currentUser.id);
+    const userId = currentUser.id;
+    const isCollab = parsedIds.includes(userId);
     setIsCollaborator(isCollab);
 
     console.log("parsedIds:", parsedIds);
@@ -410,7 +421,7 @@ export default function ConfirmGiftScreen() {
     // 3. Fetch display names for all participants
     const participantProfiles = await Promise.all(
       allParticipantIds.map(async (id) => {
-        const { user } = await UserService.getUserById(id);
+        const { user } = await UserService.getUserById(id ?? "");
         return user ? { id: user.id, name: user.display_name } : null;
       })
     );
@@ -419,18 +430,18 @@ export default function ConfirmGiftScreen() {
 
     // 4. Construct the gift data with the new structure
     const collaboratorProfiles = validParticipants.filter(
-      (p) => p!.id !== currentUser.id
+      (p) => p!.id !== currentUser?.id
     );
 
     const giftData: any = {
       receiver_display_name: friendName,
       receiver_id: friendId,
       sender_display_names: {
-        host: currentUser.display_name,
+        host: currentUser?.display_name,
         collaborators: collaboratorProfiles.map((p) => p!.name),
       },
       sender_ids: {
-        host: currentUser.id,
+        host: currentUser?.id,
         collaborators: collaboratorProfiles.map((p) => p!.id),
       },
       address: locationAddress,
@@ -491,7 +502,7 @@ export default function ConfirmGiftScreen() {
                 />
                 <View>
                   <Text style={styles.recipientName}>
-                    {gift.sender_id === currentUser.id ? "You" : gift.sender}
+                    {gift.sender_id === currentUser?.id ? "You" : gift.sender}
                   </Text>
                 </View>
               </View>
