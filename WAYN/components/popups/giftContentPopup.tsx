@@ -90,6 +90,7 @@ interface GiftContentPopupProps {
     }>;
   };
   onComplete: () => void;
+  viewOnly?: boolean;
 }
 
 const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
@@ -101,6 +102,7 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
   senderDisplayNames,
   content,
   onComplete,
+  viewOnly = false,
 }) => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
@@ -907,12 +909,15 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
 
             {renderGiftContent()}
 
-            <View style={styles.buttonContainer}>
-              <PrimaryButton
-                title={getButtonText()}
-                onPress={handleMainAction}
-              />
-            </View>
+            {/* Only show button if not in view-only mode */}
+            {!viewOnly && (
+              <View style={styles.buttonContainer}>
+                <PrimaryButton
+                  title={getButtonText()}
+                  onPress={handleMainAction}
+                />
+              </View>
+            )}
           </View>
         </View>
       </Modal>
