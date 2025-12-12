@@ -17,6 +17,42 @@ import { theme } from "../../assets/theme";
 import PrimaryButton from "../buttons/primaryButtonMed";
 import GiftCardRenderer from "../giftCardRenderer";
 
+type LetterBlockBase = {
+  id: string;
+};
+
+type TextBlock = LetterBlockBase & {
+  type: "text";
+  content: string;
+};
+
+type ImageBlock = LetterBlockBase & {
+  type: "image";
+  content: string;
+  aspectRatio?: number;
+};
+
+type StickerBlock = LetterBlockBase & {
+  type: "sticker";
+  content: StickerKey;
+  size?: number;
+  x?: number;
+  y?: number;
+  rotation?: number;
+};
+
+type DrawBlock = LetterBlockBase & {
+  type: "draw";
+  strokes: Array<{
+    id: string;
+    color: string;
+    thickness: number;
+    points: Array<{ x: number; y: number }>;
+  }>;
+};
+
+type LetterBlock = TextBlock | ImageBlock | StickerBlock | DrawBlock;
+
 interface GiftContentPopupProps {
   visible: boolean;
   onClose: () => void;
@@ -384,7 +420,7 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
 
     if (giftType === "letter") {
       // Handle both direct letter array and nested letter object
-      const letterBlocks = Array.isArray(content.letter)
+      const letterBlocks: LetterBlock[] = Array.isArray(content.letter)
         ? content.letter
         : (content as any).letterBlocks || [];
 
@@ -413,7 +449,10 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
               <>
                 {/* Regular blocks (text, image) */}
                 {letterBlocks
-                  .filter((b) => b.type !== "sticker" && b.type !== "draw")
+                  .filter(
+                    (b): b is TextBlock | ImageBlock =>
+                      b.type !== "sticker" && b.type !== "draw"
+                  )
                   .map((block) => {
                     if (block.type === "text") {
                       return (
@@ -431,9 +470,11 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
                           source={{ uri: block.content }}
                           style={[
                             styles.letterImage,
-                            block.aspectRatio && {
-                              aspectRatio: block.aspectRatio,
-                            },
+                            block.aspectRatio
+                              ? {
+                                  aspectRatio: block.aspectRatio,
+                                }
+                              : undefined,
                           ]}
                           resizeMode="contain"
                         />
@@ -444,68 +485,55 @@ const GiftContentPopup: React.FC<GiftContentPopupProps> = ({
 
                 {/* Stickers overlay - positioned absolutely */}
                 {letterBlocks
-                  .filter((b) => b.type === "sticker")
-                  .map((block) => {
-                    if (block.type === "sticker") {
-                      return (
-                        <View
-                          key={block.id}
-                          style={[
-                            styles.letterSticker,
-                            {
-                              left: block.x || 0,
-                              top: block.y || 0,
-                              width: block.size || 120,
-                              height: block.size || 120,
-                              transform: [
-                                { rotate: `${block.rotation || 0}rad` },
-                              ],
-                            },
-                          ]}
-                        >
-                          <Image
-                            source={stickers[block.content as StickerKey]}
-                            style={styles.letterStickerImage}
-                            resizeMode="contain"
-                          />
-                        </View>
-                      );
-                    }
-                    return null;
-                  })}
+                  .filter((b): b is StickerBlock => b.type === "sticker")
+                  .map((block) => (
+                    <View
+                      key={block.id}
+                      style={[
+                        styles.letterSticker,
+                        {
+                          left: block.x || 0,
+                          top: block.y || 0,
+                          width: block.size || 120,
+                          height: block.size || 120,
+                          transform: [{ rotate: `${block.rotation || 0}rad` }],
+                        },
+                      ]}
+                    >
+                      <Image
+                        source={stickers[block.content]}
+                        style={styles.letterStickerImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ))}
 
                 {/* Draw blocks overlay */}
                 {letterBlocks
-                  .filter((b) => b.type === "draw")
-                  .map((block) => {
-                    if (block.type === "draw" && block.strokes) {
-                      return (
-                        <View key={block.id} style={styles.letterDrawContainer}>
-                          <Svg
-                            style={StyleSheet.absoluteFill}
-                            width="100%"
-                            height="100%"
-                          >
-                            {block.strokes.map((stroke) => (
-                              <Polyline
-                                key={stroke.id}
-                                points={stroke.points
-                                  .map((p) => `${p.x},${p.y}`)
-                                  .join(" ")}
-                                fill="none"
-                                stroke={stroke.color}
-                                strokeWidth={stroke.thickness}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            ))}
-                          </Svg>
-                        </View>
-                      );
-                    }
-
-                    return null;
-                  })}
+                  .filter((b): b is DrawBlock => b.type === "draw")
+                  .map((block) => (
+                    <View key={block.id} style={styles.letterDrawContainer}>
+                      <Svg
+                        style={StyleSheet.absoluteFill}
+                        width="100%"
+                        height="100%"
+                      >
+                        {block.strokes.map((stroke) => (
+                          <Polyline
+                            key={stroke.id}
+                            points={stroke.points
+                              .map((p) => `${p.x},${p.y}`)
+                              .join(" ")}
+                            fill="none"
+                            stroke={stroke.color}
+                            strokeWidth={stroke.thickness}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ))}
+                      </Svg>
+                    </View>
+                  ))}
               </>
             </View>
           </ScrollView>
