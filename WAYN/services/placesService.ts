@@ -12,6 +12,7 @@ export interface PlaceMerchant {
   rating?: number;
   userRatingsTotal?: number;
   photoReference?: string;
+  distanceMeters?: number;
 }
 
 // Map Google place types to our categories

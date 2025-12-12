@@ -619,7 +619,7 @@ export default function PlaylistComposeScreen() {
         )}
 
         {collaboratorIds && (
-          <View style={styles.bottomButtons}>
+          <View>
             <DualBottomCTA
               primaryText="Add Gift"
               secondaryText="Save & Exit"

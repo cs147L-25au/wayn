@@ -313,6 +313,79 @@ export class UserService {
   }
 
   /**
+ * Upload profile avatar to Supabase Storage
+ */
+static async uploadProfileAvatar(
+  userId: string,
+  localUri: string
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    // Extract file extension
+    const fileExtension = localUri.split('.').pop() || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExtension}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Read file as blob
+    const response = await fetch(localUri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // Upload to Supabase Storage
+    const { data, error } = await db.storage
+      .from('profile-pictures')  // Changed from 'profile-avatars'
+      .upload(filePath, arrayBuffer, {
+        contentType: this.getMimeType(fileExtension),
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Error uploading avatar:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Get public URL
+    const { data: urlData } = db.storage
+      .from('profile-pictures')  // Changed from 'profile-avatars'
+      .getPublicUrl(filePath);
+
+    return { success: true, url: urlData.publicUrl };
+  } catch (error: any) {
+    console.error('Unexpected error in uploadProfileAvatar:', error);
+    return { success: false, error: error.message || 'Unexpected error occurred' };
+  }
+}
+
+  /**
+ * Update user profile (display name, address, profile icon)
+ */
+static async updateProfile(
+  userId: string,
+  updates: {
+    display_name?: string;
+    current_address?: string | null;
+    profile_icon_url?: string | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await db
+      .from('users')
+      .update(updates)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Profile updated for user ${userId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error in updateProfile:', error);
+    return { success: false, error: 'Unexpected error occurred' };
+  }
+}
+
+  /**
    * Get user's current status
    */
   static async getStatus(userId: string): Promise<{

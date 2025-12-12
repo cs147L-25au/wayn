@@ -91,7 +91,11 @@ export default function MerchantSelectionScreen() {
   const [category, setCategory] = useState("");
 
   useEffect(() => {
-    setCategory(locationCategory);
+    // Handle both string and string[] from route params
+    const cat = Array.isArray(locationCategory)
+      ? locationCategory[0]
+      : locationCategory;
+    setCategory(cat || "");
   }, [locationCategory]);
 
   // Load nearby merchants on mount
@@ -164,14 +168,23 @@ export default function MerchantSelectionScreen() {
         let merchantsList = [...transformedMerchants];
         console.log("locationCategory", locationCategory);
         if (locationCategory && MERCHANT_CATEGORIES.includes(category)) {
+          const categoryStr = Array.isArray(locationCategory)
+            ? locationCategory[0]
+            : locationCategory;
+          const addressStr = Array.isArray(locationAddress)
+            ? locationAddress[0]
+            : locationAddress;
+          const nameStr = Array.isArray(locationName)
+            ? locationName[0]
+            : locationName;
           const selectedLocationMerchant: Merchant = {
             id: "selected-location",
-            name: locationName as string,
+            name: nameStr || "",
             relevanceTag: "Your selected location",
-            categoryIconUrl: getCategoryIcon(locationCategory),
-            category: locationCategory,
+            categoryIconUrl: getCategoryIcon(categoryStr || "other"),
+            category: categoryStr,
             rating: undefined,
-            address: locationAddress,
+            address: addressStr,
             distanceMeters: 0,
           };
 
@@ -323,7 +336,7 @@ export default function MerchantSelectionScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ActivityIndicator size="large" color={theme.colors.waynOrange} />
             <Text style={[theme.text.body2, styles.loadingText]}>
               Finding nearby merchants...
             </Text>
