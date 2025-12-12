@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { theme } from "../../../assets/theme";
 import { useAuth } from "../../../contexts/authContext";
 import { UserService } from "../../../services/userService";
 import { Friend } from "../../../types";
@@ -420,11 +421,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    flex: 1,
-    textAlign: "center",
+    ...theme.text.headline2,
   },
   closeButton: {
     width: 40,
@@ -483,13 +480,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 4,
+    ...theme.text.body1Bold,
   },
   activity: {
-    fontSize: 14,
+    ...theme.text.body3,
     color: "#999",
   },
   actionButton: {
@@ -498,26 +492,27 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     minWidth: 90,
     alignItems: "center",
+    justifyContent: "center",
   },
   addButton: {
-    backgroundColor: "#FFF",
+    backgroundColor: theme.colors.white,
     borderWidth: 2,
-    borderColor: "#FF6B52",
+    borderColor: theme.colors.waynOrange,
   },
   removeButton: {
-    backgroundColor: "#FF6B52",
+    backgroundColor: theme.colors.waynOrange,
     borderWidth: 2,
-    borderColor: "#FF6B52",
+    borderColor: theme.colors.waynOrange,
   },
   actionButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
+    marginTop: 2,
+    ...theme.text.buttonSmall,
   },
   addButtonText: {
-    color: "#FF6B52",
+    color: theme.colors.waynOrange,
   },
   removeButtonText: {
-    color: "#FFF",
+    color: theme.colors.white,
   },
   bottomContainer: {
     paddingHorizontal: 20,
@@ -525,7 +520,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   doneButton: {
-    backgroundColor: "#FF6B52",
+    backgroundColor: theme.colors.waynOrange,
     borderRadius: 30,
     paddingVertical: 18,
     alignItems: "center",
@@ -541,8 +536,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   doneButtonText: {
-    color: "#FFF",
-    fontSize: 17,
-    fontWeight: "700",
+    ...theme.text.buttonMedium,
+    color: theme.colors.white,
   },
 });
