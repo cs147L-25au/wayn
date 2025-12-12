@@ -27,6 +27,7 @@ export default function GiftSelectionScreen() {
     hostName,
     hostId,
     sessionId: paramSessionId,
+    locationCategory,
   } = params;
   const [collaboratorCount, setCollaboratorCount] = useState(0);
   const [currentGiftCount, setCurrentGiftCount] = useState(0); // New state for gift count
@@ -133,7 +134,7 @@ export default function GiftSelectionScreen() {
         locationAddress,
         locationLatitude: params.locationLatitude,
         locationLongitude: params.locationLongitude,
-        locationCategory: params.locationCategory || "RESTAURANT",
+        locationCategory: params.locationCategory,
         collaboratorIds,
         sessionId,
         giftCount: currentGiftCount,

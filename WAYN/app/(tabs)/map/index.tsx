@@ -18,6 +18,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   StyleSheet,
@@ -63,8 +64,8 @@ import { UserService } from "../../../services/userService";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-import NavigationHeader from "../../../components/navigation/navigationHeader";
 import NavigationFooter from "../../../components/navigation/navigationFooter";
+import NavigationHeader from "../../../components/navigation/navigationHeader";
 import {
   NavigationService,
   RouteData,
@@ -1766,6 +1767,7 @@ export default function App() {
           locationAddress: selectedLocation.address,
           locationLatitude: selectedLocation.latitude.toString(),
           locationLongitude: selectedLocation.longitude.toString(),
+          locationCategory: selectedLocation.category,
           // No animation param needed, will default to slide_from_right
         },
       });
