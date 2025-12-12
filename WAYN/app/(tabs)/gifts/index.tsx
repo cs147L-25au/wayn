@@ -25,32 +25,58 @@ import { TagIconSvg, TagVariant } from "../../../components/TagIconSVG";
 import { useAuth } from "../../../contexts/authContext";
 import { UserService } from "../../../services/userService";
 import { db } from "../../../utils/supabase";
+import GiftContentPopup from "../../../components/popups/giftContentPopup";
 
-
-const PinkPlank = ({ 
-  width, 
-  isReceived = false 
-}: { 
-  width: number; 
+const PinkPlank = ({
+  width,
+  isReceived = false,
+}: {
+  width: number;
   isReceived?: boolean;
 }) => {
   const gradientId = isReceived ? "purplePlankGradient" : "pinkPlankGradient";
   const gradientStart = isReceived ? "#ADB1FF" : "#FFB9AF";
   const gradientEnd = isReceived ? "#626AFF" : "#FF8D84";
   const lightColor = isReceived ? "#E6E8FF" : "#FFE3DF";
-  
+
   return (
-    <Svg width={width} height={110} viewBox={`0 0 ${width} 110`} preserveAspectRatio="none">
+    <Svg
+      width={width}
+      height={110}
+      viewBox={`0 0 ${width} 110`}
+      preserveAspectRatio="none"
+    >
       <Defs>
         <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={gradientStart} />
           <Stop offset="1" stopColor={gradientEnd} />
         </LinearGradient>
       </Defs>
-      <Rect x="0" y="28" width={width} height="30" rx="6" fill={`url(#${gradientId})`} />
+      <Rect
+        x="0"
+        y="28"
+        width={width}
+        height="30"
+        rx="6"
+        fill={`url(#${gradientId})`}
+      />
       <Rect x="0" y="60" width={width} height="22" rx="6" fill={lightColor} />
-      <Rect x="0" y="50" width={width} height="12" rx="6" fill="rgba(255,255,255,0.35)" />
-      <Rect x="0" y="82" width={width} height="14" rx="6" fill="rgba(0,0,0,0.08)" />
+      <Rect
+        x="0"
+        y="50"
+        width={width}
+        height="12"
+        rx="6"
+        fill="rgba(255,255,255,0.35)"
+      />
+      <Rect
+        x="0"
+        y="82"
+        width={width}
+        height="14"
+        rx="6"
+        fill="rgba(0,0,0,0.08)"
+      />
     </Svg>
   );
 };
@@ -59,8 +85,15 @@ type GiftItem = {
   id: string;
   name: string;
   date: string;
-  dateTimestamp?: string; // Store original timestamp for week grouping
+  dateTimestamp?: string;
   avatar: ImageSourcePropType;
+  giftType: string;
+  content: any;
+  isCollaborative?: boolean;
+  senderDisplayNames?: {
+    host: string;
+    collaborators: string[];
+  };
 };
 
 type GiftCategory = {
@@ -81,6 +114,8 @@ const mapGiftTypeToCategory = (giftType: string): string => {
       return "letters";
     case "playlist":
       return "playlists";
+    case "collaborative":
+      return "collaborative";
     default:
       return "gift-cards";
   }
@@ -96,6 +131,8 @@ const getVariantForCategory = (categoryId: string): TagVariant => {
       return "money";
     case "audio-recordings":
       return "sound";
+    case "collaborative":
+      return "money";
     default:
       return "money";
   }
@@ -114,6 +151,8 @@ const getIconForGiftType = (
       return "edit-3";
     case "playlist":
       return "music";
+    case "collaborative":
+      return "gift";
     default:
       return "gift";
   }
@@ -155,91 +194,6 @@ const getWeekLabel = (dateString: string): string => {
   }
 };
 
-const RECEIVED_CATEGORIES: GiftCategory[] = [
-  {
-    id: "letters",
-    label: "Letters",
-    icon: "edit-3",
-    gifts: [
-      {
-        id: "sam",
-        name: "Sam L.",
-        date: "7/28/2025",
-        avatar: require("../../../assets/userIcons/hallieicon.png"),
-      },
-      {
-        id: "milo",
-        name: "Milo A.",
-        date: "7/20/2025",
-        avatar: require("../../../assets/userIcons/jillicon.png"),
-      },
-      {
-        id: "emily",
-        name: "Emily B.",
-        date: "7/10/2025",
-        avatar: require("../../../assets/userIcons/katicon.png"),
-      },
-    ],
-  },
-  {
-    id: "playlists",
-    label: "Playlists",
-    icon: "music",
-    gifts: [
-      {
-        id: "karen",
-        name: "Karen D.",
-        date: "7/12/2025",
-        avatar: require("../../../assets/userIcons/katicon.png"),
-      },
-      {
-        id: "leo",
-        name: "Leo S.",
-        date: "7/06/2025",
-        avatar: require("../../../assets/userIcons/leoicon.png"),
-      },
-    ],
-  },
-  {
-    id: "gift-cards",
-    label: "Gift Cards",
-    icon: "gift",
-    gifts: [
-      {
-        id: "avery",
-        name: "Avery L.",
-        date: "6/28/2025",
-        avatar: require("../../../assets/userIcons/katicon.png"),
-      },
-      {
-        id: "noah",
-        name: "Noah T.",
-        date: "6/20/2025",
-        avatar: require("../../../assets/userIcons/jillicon.png"),
-      },
-    ],
-  },
-  {
-    id: "audio-recordings",
-    label: "Audio Recordings",
-    icon: "mic",
-    gifts: [
-      {
-        id: "maya",
-        name: "Maya R.",
-        date: "6/12/2025",
-        avatar: require("../../../assets/userIcons/hallieicon.png"),
-      },
-      {
-        id: "leon",
-        name: "Leon H.",
-        date: "6/05/2025",
-        avatar: require("../../../assets/userIcons/leoicon.png"),
-      },
-    ],
-  },
-];
-
 const TAB_OPTIONS = [
   { id: "received", label: "Received Gifts" },
   { id: "sent", label: "Sent Gifts" },
@@ -271,23 +225,28 @@ const ITEM_SORT_PRIORITY: Record<string, number> = {
   letters: 1,
   playlists: 2,
   "audio-recordings": 3,
+  collaborative: 4,
 };
 
 const GiftCard = ({
   gift,
   variant,
   isReceived = false,
+  onPress,
 }: {
   gift: GiftItem;
   variant: TagVariant;
   isReceived?: boolean;
+  onPress: () => void;
 }) => (
-  <View style={styles.giftCardWrapper}>
-    <SvgXml 
-      xml={getGiftBoxSvg(isReceived ? theme.colors.waynBlue : theme.colors.waynOrange)} 
-      width={150} 
-      height={175} 
-      style={styles.giftBoxSvg} 
+  <Pressable style={styles.giftCardWrapper} onPress={onPress}>
+    <SvgXml
+      xml={getGiftBoxSvg(
+        isReceived ? theme.colors.waynBlue : theme.colors.waynOrange
+      )}
+      width={150}
+      height={175}
+      style={styles.giftBoxSvg}
     />
     <View style={styles.giftInfo}>
       <Image source={gift.avatar} style={styles.avatar} />
@@ -295,14 +254,14 @@ const GiftCard = ({
       <Text style={styles.giftDate}>{gift.date}</Text>
     </View>
 
-      <View style={styles.tagIcon}>
-        <TagIconSvg 
-          variant={variant} 
-          width={55} 
-          color={isReceived ? theme.colors.waynBlue : theme.colors.waynOrange}
-        />
-      </View>
-  </View>
+    <View style={styles.tagIcon}>
+      <TagIconSvg
+        variant={variant}
+        width={55}
+        color={isReceived ? theme.colors.waynBlue : theme.colors.waynOrange}
+      />
+    </View>
+  </Pressable>
 );
 
 export default function PastGiftsScreen() {
@@ -313,6 +272,8 @@ export default function PastGiftsScreen() {
   const [sentGifts, setSentGifts] = useState<GiftCategory[]>([]);
   const [receivedGifts, setReceivedGifts] = useState<GiftCategory[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null);
+  const [showGiftContentPopup, setShowGiftContentPopup] = useState(false);
 
   // Fetch received gifts from Supabase
   useEffect(() => {
@@ -326,21 +287,33 @@ export default function PastGiftsScreen() {
     const fetchReceivedGifts = async () => {
       setLoading(true);
       try {
-        const { data, error } = await db
+        // Fetch individual gifts
+        const { data: individualGifts, error: individualError } = await db
           .from("sent_gifts")
           .select("*")
           .eq("receiver_id", currentUser.id)
           .in("status", ["pending", "opened"])
           .order("created_at", { ascending: false });
 
-        if (error) {
-          console.error("Error fetching received gifts:", error);
-          setLoading(false);
-          setReceivedGifts([]);
-          return;
+        if (individualError) {
+          console.error("Error fetching received gifts:", individualError);
         }
 
-        if (!data || data.length === 0) {
+        // Fetch collaborative gifts
+        const { data: collabGifts, error: collabError } = await db
+          .from("sent_gifts_collab")
+          .select("*")
+          .eq("receiver_id", currentUser.id)
+          .or("status.is.null,status.eq.pending,status.eq.opened")
+          .order("created_at", { ascending: false });
+
+        if (collabError) {
+          console.error("Error fetching collab gifts:", collabError);
+        }
+
+        const allGifts = [...(individualGifts || []), ...(collabGifts || [])];
+
+        if (allGifts.length === 0) {
           setReceivedGifts([]);
           setLoading(false);
           return;
@@ -351,15 +324,32 @@ export default function PastGiftsScreen() {
 
         // Fetch avatars for all senders
         const resolvedGifts = await Promise.all(
-          data.map(async (gift) => {
-            const { success, user } = await UserService.getUserById(
-              gift.sender_id
-            );
-            let avatar = user?.profile_icon_url
-              ? { uri: user.profile_icon_url }
-              : require("../../../assets/userIcons/jillicon.png");
+          allGifts.map(async (gift) => {
+            const isCollab = !!gift.sender_ids;
 
-            // Handle timestamp - try created_at first, fallback to other timestamp fields
+            let avatar;
+            let senderName;
+
+            if (isCollab) {
+              // For collaborative gifts, use host's avatar
+              const { success, user } = await UserService.getUserById(
+                gift.sender_ids.host
+              );
+              avatar = user?.profile_icon_url
+                ? { uri: user.profile_icon_url }
+                : require("../../../assets/userIcons/jillicon.png");
+              senderName = gift.sender_display_names.host;
+            } else {
+              const { success, user } = await UserService.getUserById(
+                gift.sender_id
+              );
+              avatar = user?.profile_icon_url
+                ? { uri: user.profile_icon_url }
+                : require("../../../assets/userIcons/jillicon.png");
+              senderName = gift.sender_display_name;
+            }
+
+            // Handle timestamp
             const timestamp =
               gift.created_at ||
               (gift as any).createdAt ||
@@ -367,18 +357,26 @@ export default function PastGiftsScreen() {
 
             return {
               id: gift.id.toString(),
-              name: gift.sender_display_name,
+              name: senderName,
               date: formatDate(timestamp),
-              dateTimestamp: timestamp, // Store original timestamp for week grouping
+              dateTimestamp: timestamp,
               avatar,
+              giftType: isCollab ? "collaborative" : gift.gift_type,
+              content: gift.content || {},
+              isCollaborative: isCollab,
+              senderDisplayNames: isCollab
+                ? gift.sender_display_names
+                : undefined,
             };
           })
         );
 
         // Group by category
         resolvedGifts.forEach((giftItem, index) => {
-          const gift = data[index];
-          const categoryId = mapGiftTypeToCategory(gift.gift_type);
+          const gift = allGifts[index];
+          const categoryId = mapGiftTypeToCategory(
+            giftItem.isCollaborative ? "collaborative" : gift.gift_type
+          );
 
           if (!giftsByCategory[categoryId]) {
             giftsByCategory[categoryId] = [];
@@ -389,9 +387,6 @@ export default function PastGiftsScreen() {
         // Convert to GiftCategory array
         const categories: GiftCategory[] = Object.entries(giftsByCategory).map(
           ([categoryId, gifts]) => {
-            const firstGift = data.find(
-              (g) => mapGiftTypeToCategory(g.gift_type) === categoryId
-            );
             return {
               id: categoryId,
               label:
@@ -401,10 +396,12 @@ export default function PastGiftsScreen() {
                   ? "Audio Recordings"
                   : categoryId === "letters"
                   ? "Letters"
-                  : "Playlists",
-              icon: firstGift
-                ? getIconForGiftType(firstGift.gift_type)
-                : "gift",
+                  : categoryId === "playlists"
+                  ? "Playlists"
+                  : "Collaborative Gifts",
+              icon: getIconForGiftType(
+                categoryId === "collaborative" ? "collaborative" : categoryId
+              ),
               gifts,
             };
           }
@@ -434,20 +431,35 @@ export default function PastGiftsScreen() {
     const fetchSentGifts = async () => {
       setLoading(true);
       try {
-        const { data, error } = await db
+        // Fetch individual gifts
+        const { data: individualGifts, error: individualError } = await db
           .from("sent_gifts")
           .select("*")
           .eq("sender_id", currentUser.id)
           .order("created_at", { ascending: false });
 
-        if (error) {
-          console.error("Error fetching sent gifts:", error);
-          setLoading(false);
-          setSentGifts([]);
-          return;
+        if (individualError) {
+          console.error("Error fetching sent gifts:", individualError);
         }
 
-        if (!data || data.length === 0) {
+        // Fetch collaborative gifts where user is host
+        const { data: collabGifts, error: collabError } = await db
+          .from("sent_gifts_collab")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (collabError) {
+          console.error("Error fetching collab gifts:", collabError);
+        }
+
+        // Filter collaborative gifts where current user is the host
+        const userCollabGifts = (collabGifts || []).filter(
+          (gift) => gift.sender_ids?.host === currentUser.id
+        );
+
+        const allGifts = [...(individualGifts || []), ...userCollabGifts];
+
+        if (allGifts.length === 0) {
           setSentGifts([]);
           setLoading(false);
           return;
@@ -458,7 +470,9 @@ export default function PastGiftsScreen() {
 
         // Fetch avatars for all receivers
         const resolvedGifts = await Promise.all(
-          data.map(async (gift) => {
+          allGifts.map(async (gift) => {
+            const isCollab = !!gift.sender_ids;
+
             const { success, user } = await UserService.getUserById(
               gift.receiver_id
             );
@@ -466,7 +480,7 @@ export default function PastGiftsScreen() {
               ? { uri: user.profile_icon_url }
               : require("../../../assets/userIcons/jillicon.png");
 
-            // Handle timestamp - try created_at first, fallback to other timestamp fields
+            // Handle timestamp
             const timestamp =
               gift.created_at ||
               (gift as any).createdAt ||
@@ -476,16 +490,21 @@ export default function PastGiftsScreen() {
               id: gift.id.toString(),
               name: gift.receiver_display_name,
               date: formatDate(timestamp),
-              dateTimestamp: timestamp, // Store original timestamp for week grouping
+              dateTimestamp: timestamp,
               avatar,
+              giftType: isCollab ? "collaborative" : gift.gift_type,
+              content: gift.content || {},
+              isCollaborative: isCollab,
+              senderDisplayNames: isCollab
+                ? gift.sender_display_names
+                : undefined,
             };
           })
         );
 
         // Group by category
-        resolvedGifts.forEach((giftItem, index) => {
-          const gift = data[index];
-          const categoryId = mapGiftTypeToCategory(gift.gift_type);
+        resolvedGifts.forEach((giftItem) => {
+          const categoryId = mapGiftTypeToCategory(giftItem.giftType);
 
           if (!giftsByCategory[categoryId]) {
             giftsByCategory[categoryId] = [];
@@ -496,9 +515,6 @@ export default function PastGiftsScreen() {
         // Convert to GiftCategory array
         const categories: GiftCategory[] = Object.entries(giftsByCategory).map(
           ([categoryId, gifts]) => {
-            const firstGift = data.find(
-              (g) => mapGiftTypeToCategory(g.gift_type) === categoryId
-            );
             return {
               id: categoryId,
               label:
@@ -508,10 +524,10 @@ export default function PastGiftsScreen() {
                   ? "Audio Recordings"
                   : categoryId === "letters"
                   ? "Letters"
-                  : "Playlists",
-              icon: firstGift
-                ? getIconForGiftType(firstGift.gift_type)
-                : "gift",
+                  : categoryId === "playlists"
+                  ? "Playlists"
+                  : "Collaborative Gifts",
+              icon: getIconForGiftType(categoryId),
               gifts,
             };
           }
@@ -575,7 +591,7 @@ export default function PastGiftsScreen() {
         string,
         { weekLabel: string; weekStart: Date; gifts: GiftItem[] }
       > = {};
-    
+
       timeline.forEach((category) => {
         category.gifts.forEach((gift) => {
           // Use original timestamp if available, otherwise parse from formatted date
@@ -585,12 +601,12 @@ export default function PastGiftsScreen() {
                 const [month, day, year] = gift.date.split("/").map(Number);
                 return new Date(year, month - 1, day);
               })();
-    
+
           const iso = giftDate.toISOString();
           const weekKey = getWeekKey(iso);
           const weekLabel = getWeekLabel(iso);
           const weekStart = new Date(getWeekKey(iso));
-    
+
           if (!giftsByWeek[weekKey]) {
             giftsByWeek[weekKey] = {
               weekLabel,
@@ -598,11 +614,11 @@ export default function PastGiftsScreen() {
               gifts: [],
             };
           }
-    
+
           giftsByWeek[weekKey].gifts.push(gift);
         });
       });
-    
+
       // One GiftCategory (i.e., one shelf) per week, newest → oldest
       const weeklyCategories: GiftCategory[] = Object.entries(giftsByWeek)
         .sort((a, b) => b[1].weekStart.getTime() - a[1].weekStart.getTime())
@@ -614,18 +630,18 @@ export default function PastGiftsScreen() {
             const dateB = new Date(yearB, monthB - 1, dayB);
             return dateB.getTime() - dateA.getTime();
           });
-    
+
           return {
             id: weekKey,
             label: weekData.weekLabel, // one date range per shelf
-            icon: "gift",              // icon not rendered for recency anyway
+            icon: "gift", // icon not rendered for recency anyway
             gifts: sortedGifts,
           };
         });
-    
+
       return weeklyCategories;
     }
-    
+
     const sorted = timeline.map((category) => {
       const gifts = [...category.gifts];
       return { ...category, gifts };
@@ -646,6 +662,16 @@ export default function PastGiftsScreen() {
   }, [sort, timeline]);
 
   const handleSortPress = () => setSortMenuVisible((prev) => !prev);
+
+  const handleGiftPress = (gift: GiftItem) => {
+    setSelectedGift(gift);
+    setShowGiftContentPopup(true);
+  };
+
+  const handleGiftContentComplete = () => {
+    setShowGiftContentPopup(false);
+    setSelectedGift(null);
+  };
 
   const { width } = useWindowDimensions();
   const horizontalPadding = theme.spacing.lg * 2;
@@ -671,8 +697,14 @@ export default function PastGiftsScreen() {
               <View style={styles.sortMenu}>
                 {SORT_OPTIONS.map((option) => {
                   const isActive = sort === option;
-                  const activeColor = activeTab === "received" ? theme.colors.waynBlue : theme.colors.waynOrange;
-                  const activeBgColor = activeTab === "received" ? theme.colors.waynBlueLight : "#FFE7E2";
+                  const activeColor =
+                    activeTab === "received"
+                      ? theme.colors.waynBlue
+                      : theme.colors.waynOrange;
+                  const activeBgColor =
+                    activeTab === "received"
+                      ? theme.colors.waynBlueLight
+                      : "#FFE7E2";
                   return (
                     <Pressable
                       key={option}
@@ -685,14 +717,14 @@ export default function PastGiftsScreen() {
                         setSortMenuVisible(false);
                       }}
                     >
-                          <Text
-                            style={[
-                              styles.sortMenuItemText,
-                              isActive ? { color: activeColor } : undefined,
-                            ]}
-                          >
-                            {getSortLabel(option, activeTab)}
-                          </Text>
+                      <Text
+                        style={[
+                          styles.sortMenuItemText,
+                          isActive ? { color: activeColor } : undefined,
+                        ]}
+                      >
+                        {getSortLabel(option, activeTab)}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -742,7 +774,10 @@ export default function PastGiftsScreen() {
                     ? 0
                     : tabStripWidth / TAB_OPTIONS.length,
                 width: tabStripWidth / TAB_OPTIONS.length,
-                backgroundColor: activeTab === "received" ? theme.colors.waynBlue : theme.colors.waynOrange,
+                backgroundColor:
+                  activeTab === "received"
+                    ? theme.colors.waynBlue
+                    : theme.colors.waynOrange,
               },
             ]}
           />
@@ -818,18 +853,25 @@ export default function PastGiftsScreen() {
                       },
                     ]}
                   >
-                    <PinkPlank width={shelfWidth} isReceived={activeTab === "received"} />
+                    <PinkPlank
+                      width={shelfWidth}
+                      isReceived={activeTab === "received"}
+                    />
                   </View>
                   <View style={[styles.cardsRow, { width: shelfWidth }]}>
-                  {category.gifts.map((gift) => (
-                    <View key={gift.id} style={styles.cardContainer}>
-                      <GiftCard
-                        gift={gift}
-                        variant={getVariantForCategory(category.id)}
-                        isReceived={activeTab === "received"}
-                      />
-                    </View>
-                  ))}
+                    {category.gifts.map((gift, giftIndex) => (
+                      <View
+                        key={`${gift.id}-${giftIndex}`}
+                        style={styles.cardContainer}
+                      >
+                        <GiftCard
+                          gift={gift}
+                          variant={getVariantForCategory(category.id)}
+                          isReceived={activeTab === "received"}
+                          onPress={() => handleGiftPress(gift)}
+                        />
+                      </View>
+                    ))}
                   </View>
                 </View>
               </ScrollView>
@@ -837,6 +879,21 @@ export default function PastGiftsScreen() {
           );
         })}
       </ScrollView>
+
+      {/* Gift content popup */}
+      {selectedGift && (
+        <GiftContentPopup
+          visible={showGiftContentPopup}
+          onClose={() => setShowGiftContentPopup(false)}
+          giftType={selectedGift.giftType}
+          senderName={selectedGift.name}
+          dateSent={selectedGift.date}
+          senderDisplayNames={selectedGift.senderDisplayNames}
+          content={selectedGift.content}
+          onComplete={handleGiftContentComplete}
+          viewOnly={true}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1035,7 +1092,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     top: 50,
-
     transform: [{ rotate: "20deg" }],
   },
   shelfGraphic: {
