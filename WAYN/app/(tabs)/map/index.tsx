@@ -1868,7 +1868,7 @@ export default function App() {
       return [friendLocation, ...mockLocationsWithCoords];
     }
 
-    return selectedFriend?.favoriteLocations; // Show all mock locations
+    return mockLocationsWithCoords; // Show all mock locations
   };
 
   const locationsToShow = getLocationsToShow();
