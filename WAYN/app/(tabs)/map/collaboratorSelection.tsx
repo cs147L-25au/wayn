@@ -41,18 +41,14 @@ export default function AddCollaboratorsScreen() {
   const [searchText, setSearchText] = useState("");
   const [allFriends, setAllFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [parsedIds, setParsedIds] = useState([]);
-  const [collabIds, setCollabIds] = useState(params.collaboratorIds);
-  const [host, setHost] = useState(null);
+  const [parsedIds, setParsedIds] = useState<string[]>([]);
+  const [host, setHost] = useState<string>("");
   const [isCollaborator, setIsCollaborator] = useState(false);
 
   useEffect(() => {
-    // if (collaboratorIds) {
-    //   setParsedIds(JSON.parse(collaboratorIds));
-    // }
-    if (hostName) {
-      setHost(hostName);
-    }
+    const normalizedHost = Array.isArray(hostName) ? hostName[0] : hostName;
+
+    setHost(normalizedHost ?? "");
   }, []);
 
   const getInitialIds = () => {
@@ -90,19 +86,6 @@ export default function AddCollaboratorsScreen() {
       loadCollaborators();
     }, [])
   );
-
-  // const filteredCollaborators = useMemo(() => {
-  //   return allFriends
-  //     .filter(
-  //       // Always exclude the gift recipient
-  //       (friend) => friend.id !== params.friendId
-  //     )
-  //     .filter((friend) => {
-  //       // Filter by search text
-  //       const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase();
-  //       return fullName.includes(searchText.toLowerCase());
-  //     });
-  // }, [allFriends, params.friendId, searchText, params.hostName, parsedIds]);
 
   // Add this useEffect to sync addedCollaboratorIds with parsedIds
   useEffect(() => {
@@ -160,7 +143,7 @@ export default function AddCollaboratorsScreen() {
   }, []);
 
   useEffect(() => {
-    setIsCollaborator(parsedIds.includes(currentUser?.id));
+    setIsCollaborator(parsedIds.includes(currentUser?.id ?? ""));
   }, [parsedIds, currentUser?.id]);
 
   const filteredCollaborators = useMemo(() => {

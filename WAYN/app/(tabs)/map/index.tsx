@@ -684,7 +684,7 @@ export default function App() {
         },
         (payload) => {
           console.log("Collaboration invite received:", payload.new);
-          setCollabInvite(payload.new);
+          setCollabInvite(payload.new as CollabInviteNotification);
         }
       )
       .subscribe();
@@ -822,12 +822,16 @@ export default function App() {
       };
       setPlacedGifts((prev) => [...prev, newGift]);
       setTimeout(() => {
-      setMapRegion(prev => prev ? {
-        ...prev,
-        latitude: prev.latitude + 0.00001, // Tiny change
-        longitude: prev.longitude + 0.00001,
-      } : undefined);
-    }, 100);
+        setMapRegion((prev) =>
+          prev
+            ? {
+                ...prev,
+                latitude: prev.latitude + 0.00001, // Tiny change
+                longitude: prev.longitude + 0.00001,
+              }
+            : undefined
+        );
+      }, 100);
     }
 
     // Clear the params
@@ -1180,12 +1184,15 @@ export default function App() {
         // Process individual gifts
         for (const gift of individualGifts || []) {
           const friend = friends.find((f) => f.id === gift.receiver_id);
-          
+
           processedGifts.push({
             id: gift.id.toString(),
             friendId: gift.receiver_id,
-            friendName: gift.receiver_display_name || (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
-            friendIcon: friend?.icon || require("../../../assets/userIcons/jillicon.png"),
+            friendName:
+              gift.receiver_display_name ||
+              (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
+            friendIcon:
+              friend?.icon || require("../../../assets/userIcons/jillicon.png"),
             latitude: parseFloat(gift.latitude) || 0,
             longitude: parseFloat(gift.longitude) || 0,
             giftType: gift.gift_type,
@@ -1201,12 +1208,15 @@ export default function App() {
         // Process collaborative gifts
         for (const gift of userCollabGifts) {
           const friend = friends.find((f) => f.id === gift.receiver_id);
-          
+
           processedGifts.push({
             id: gift.id.toString(),
             friendId: gift.receiver_id,
-            friendName: gift.receiver_display_name || (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
-            friendIcon: friend?.icon || require("../../../assets/userIcons/jillicon.png"),
+            friendName:
+              gift.receiver_display_name ||
+              (friend ? `${friend.firstName} ${friend.lastName}` : "Friend"),
+            friendIcon:
+              friend?.icon || require("../../../assets/userIcons/jillicon.png"),
             latitude: parseFloat(gift.latitude) || 0,
             longitude: parseFloat(gift.longitude) || 0,
             giftType: "collaborative",
@@ -1220,7 +1230,13 @@ export default function App() {
         }
 
         setPlacedGifts(processedGifts);
-        console.log("Loaded placed gifts:", processedGifts.length, "(including", userCollabGifts.length, "collaborative)");
+        console.log(
+          "Loaded placed gifts:",
+          processedGifts.length,
+          "(including",
+          userCollabGifts.length,
+          "collaborative)"
+        );
       } catch (err) {
         console.error("Unexpected error loading placed gifts:", err);
       }

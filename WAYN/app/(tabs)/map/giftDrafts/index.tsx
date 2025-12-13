@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -9,11 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { theme } from "../../../../assets/theme";
+import GiftVisual from "../../../../components/GiftVisual";
 import { useAuth } from "../../../../contexts/authContext";
 import { UserService } from "../../../../services/userService";
 import { db } from "../../../../utils/supabase";
-import { theme } from "../../../../assets/theme";
-import GiftVisual from "../../../../components/GiftVisual";
 
 export interface Gift {
   id: number;
@@ -156,74 +155,6 @@ export default function IndividualGiftsScreen() {
   const handleResume = async (gift: Gift) => {
     Alert.alert("Resume gift creation feature coming soon!");
     return;
-    // Fetch friend info to get icon
-    const { success, friend } = await UserService.getFriendById(
-      gift.receiver_id || ""
-    );
-
-    // Extract icon URI - Friend.icon can be string, number, or { uri: string }
-    let friendIconUri = "";
-    if (friend?.icon) {
-      if (typeof friend.icon === "string") {
-        friendIconUri = friend.icon;
-      } else if (typeof friend.icon === "number") {
-        friendIconUri = friend.icon.toString();
-      } else if (
-        typeof friend.icon === "object" &&
-        friend.icon !== null &&
-        "uri" in friend.icon
-      ) {
-        friendIconUri = (friend.icon as { uri: string }).uri;
-      }
-    }
-
-    const params: any = {
-      friendName: gift.receiver,
-      friendId: gift.receiver_id,
-      friendIcon: friendIconUri,
-      locationAddress: gift.address || "",
-      giftId: gift.id.toString(),
-    };
-
-    if (gift.latitude && gift.longitude) {
-      params.locationLatitude = gift.latitude.toString();
-      params.locationLongitude = gift.longitude.toString();
-    }
-
-    // Route to appropriate screen based on gift type
-    switch (gift.type) {
-      case "playlist":
-        router.push({
-          pathname: "/(tabs)/map/playlistCompose",
-          params,
-        });
-        break;
-      case "letter":
-        router.push({
-          pathname: "/(tabs)/map/letterCompose",
-          params,
-        });
-        break;
-      case "audioRecording":
-        router.push({
-          pathname: "/(tabs)/map/audioCompose",
-          params: {
-            ...params,
-            giftType: "audio",
-          },
-        });
-        break;
-      case "giftCard":
-        // For gift cards, we'd need to route through merchant selection
-        // This is more complex, so for now just show an alert
-        Alert.alert(
-          "Resume Gift Card",
-          "Gift card resume functionality coming soon"
-        );
-        break;
-      default:
-        Alert.alert("Error", "Unknown gift type");
-    }
   };
 
   return (

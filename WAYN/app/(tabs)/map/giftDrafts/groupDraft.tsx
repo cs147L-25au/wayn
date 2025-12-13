@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -9,11 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+console.log("Text is:", Text);
+
+import { theme } from "../../../../assets/theme";
+import GiftVisual from "../../../../components/GiftVisual";
 import { useAuth } from "../../../../contexts/authContext";
 import { UserService } from "../../../../services/userService";
 import { db } from "../../../../utils/supabase";
-import { theme } from "../../../../assets/theme";
-import GiftVisual from "../../../../components/GiftVisual";
 
 export interface Gift {
   id: number;

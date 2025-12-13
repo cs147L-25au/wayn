@@ -1,14 +1,7 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  TouchableOpacity,
-} from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { useRouter, withLayoutContext } from "expo-router";
+import React from "react";
+import { SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
 import { theme } from "../../../../assets/theme";
 import OverlayHeader from "../../../../components/navigation/overlayHeader";
 
@@ -25,7 +18,7 @@ export default function GiftDraftsLayout() {
       {/* Header */}
       <OverlayHeader
         title="Gift Drafts"
-        onBack={() => router.push("(tabs)/map")}
+        onBack={() => router.push("/(tabs)/map")}
       />
 
       {/* Tab Navigator */}
